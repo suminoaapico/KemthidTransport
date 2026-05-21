@@ -32,8 +32,9 @@ import { InvoicesView } from './components/InvoicesView';
 import { ReceiptsView } from './components/ReceiptsView';
 import { RegistryView } from './components/RegistryView';
 import { FinanceView } from './components/FinanceView';
+import { ManualView } from './components/ManualView';
 
-type AppTab = 'dashboard' | 'jobs' | 'expenses' | 'invoices' | 'receipts' | 'registry' | 'finance';
+type AppTab = 'dashboard' | 'jobs' | 'expenses' | 'invoices' | 'receipts' | 'registry' | 'finance' | 'manual';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
@@ -505,6 +506,13 @@ export default function App() {
           >
             <Settings className="w-4 h-4" /> บัญชีเงินกู้, เงินเดือน & งบ P&L
           </button>
+
+          <button 
+            onClick={() => setActiveTab('manual')}
+            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'manual' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-emerald-600 hover:text-emerald-900 bg-emerald-500/5'}`}
+          >
+            <HelpCircle className="w-4 h-4 text-emerald-500" /> คู่มือการใช้งานระบบ
+          </button>
         </div>
       </nav>
 
@@ -798,6 +806,10 @@ export default function App() {
               handleSupabaseDelete(dbDeletePayroll, id, 'เงินเดือน (payroll)');
             }}
           />
+        )}
+
+        {activeTab === 'manual' && (
+          <ManualView />
         )}
 
       </main>
