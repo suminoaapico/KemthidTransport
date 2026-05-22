@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS customers (
   line TEXT,
   credit_term INTEGER DEFAULT 30,
   address TEXT,
+  tax_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
@@ -63,6 +64,14 @@ CREATE TABLE IF NOT EXISTS employees (
 );
 
 -- 5. Transport Jobs Table
+-- Note: the containers JSONB schema represents an array of container details:
+--   - containerNo (TEXT)
+--   - transportation (NUMERIC)
+--   - portCharge (NUMERIC)
+--   - containerHandling (NUMERIC)
+--   - liftOnOff (NUMERIC)
+--   - otherExpenseName (TEXT, Optional) - รายการค่าใช้จ่ายอื่น ๆ นอกเหนือจาก 4 รายการหลัก
+--   - otherExpenseAmount (NUMERIC, Optional) - จำนวนเงินของรายการอื่น ๆ เพิ่มเติม
 CREATE TABLE IF NOT EXISTS transport_jobs (
   job_no TEXT PRIMARY KEY,
   date TEXT NOT NULL,
@@ -96,6 +105,7 @@ CREATE TABLE IF NOT EXISTS daily_expenses (
 );
 
 -- 7. Invoices Table
+-- Note: the containers JSONB schema contains the same array format as transport_jobs.containers
 CREATE TABLE IF NOT EXISTS invoices (
   invoice_no TEXT PRIMARY KEY,
   date TEXT NOT NULL,
@@ -260,17 +270,17 @@ export const SEED_SQL_DATA = `
 TRUNCATE TABLE receipts, invoices, transport_jobs, payroll, daily_expenses, withholding_taxes, partner_payments, employees, drivers, customers, vehicles CASCADE;
 
 -- 2. Seed Customers
-INSERT INTO customers (id, name, company, phone, line, credit_term, address) VALUES
-('CUST-001', 'ศรีราชา คอนเทนเนอร์ บลู บูล', 'บจก. ศรีราชาทรานสปอร์ตคลับ', '081-2345678', 'sri_con_lg', 30, '99/9 ม.5 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี'),
-('CUST-002', 'แหลมฉบัง ซัพพลาย แอนด์ โลจิสติกส์', 'บจก. แหลมฉบังทรานสปอร์ต กรุ๊ป', '089-8765432', 'lcb_supply', 60, '102/51 หมู่ 10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี'),
-('CUST-003', 'ซีจี คาร์โก้ โลจิสติกส์', 'บจก. ซีจี คาร์โก เอเชีย', '038-123456', 'cg_cargo', 30, '45/1 ม.3 ต.หนองขาม อ.ศรีราชา จ.ชลบุรี'),
-('CUST-004', 'ชลบุรี อินเตอร์เทรด 2026', 'บจก. ชลบุรีอินเตอร์คอมเพล็กซ์', '02-999-8888', 'cb_inter', 45, '200 ถนนลงหาดบางแสน ต.แสนสุข อ.เมือง จ.ชลบุรี'),
-('CUST-005', 'ไทย ซิปปิ้ง โซลูชั่นส์', 'บจก. ไทยซิปปิ้งแอนด์พอร์ต', '081-111-2222', 'th_shipping', 30, '15/9 ถ.สุขุมวิท ต.บึง อ.ศรีราชา จ.ชลบุรี'),
-('CUST-006', 'อีสเทิร์น โลจิสติคส์ ฮับ', 'บจก. อีสเทิร์น ทรานสปอร์ต โซลูชั่นส์', '085-333-4444', 'east_logis', 30, '120 ม.4 ต.พิณทอง อ.ศรีราชา จ.ชลบุรี'),
-('CUST-007', 'รวมโชคการค้า แหลมฉบัง', 'หจก. รวมโชคทรานสปอร์ตแอนด์เทรด', '086-777-1111', 'ruamchok_lcb', 60, '18/2 ม.8 ต.สุรศักดิ์ อ.ศรีราชา จ.ชลบุรี'),
-('CUST-008', 'อมตะ ดีเวลลอปเมนท์ แมนูแฟคเจอริ่ง', 'บจก. อมตะ แมนูแฟคเจอริ่ง จรุงจิต', '038-777-666', 'amata_dev', 45, '700/12 ม.1 นิคมอุตสาหกรรมอมตะ ชลบุรี'),
-('CUST-009', 'โกลบอล บอร์เดอร์ ลิ้งค์', 'บจก. โกลบอล แทร็กกิ้ง ประเทศไทย', '02-555-9999', 'global_border', 30, '555 อาคารโกลบอล ถ.รุ่งเรือง เขตคลองเตย กรุงเทพฯ'),
-('CUST-010', 'แปซิฟิก คีย์ ซิปปิ้ง', 'บจก. แปซิฟิก ซิปปิ้ง ซัพพอร์ต', '083-999-0000', 'pacific_keys', 45, '88 ม.2 ต.บางพระ อ.ศรีราชา จ.ชลบุรี');
+INSERT INTO customers (id, name, company, phone, line, credit_term, address, tax_id) VALUES
+('CUST-001', 'ศรีราชา คอนเทนเนอร์ บลู บูล', 'บจก. ศรีราชาทรานสปอร์ตคลับ', '081-2345678', 'sri_con_lg', 30, '99/9 ม.5 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี', '0105564019280'),
+('CUST-002', 'แหลมฉบัง ซัพพลาย แอนด์ โลจิสติกส์', 'บจก. แหลมฉบังทรานสปอร์ต กรุ๊ป', '089-8765432', 'lcb_supply', 60, '102/51 หมู่ 10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี', '0105559021234'),
+('CUST-003', 'ซีจี คาร์โก้ โลจิสติกส์', 'บจก. ซีจี คาร์โก เอเชีย', '038-123456', 'cg_cargo', 30, '45/1 ม.3 ต.หนองขาม อ.ศรีราชา จ.ชลบุรี', '0205568019999'),
+('CUST-004', 'ชลบุรี อินเตอร์เทรด 2026', 'บจก. ชลบุรีอินเตอร์คอมเพล็กซ์', '02-999-8888', 'cb_inter', 45, '200 ถนนลงหาดบางแสน ต.แสนสุข อ.เมือง จ.ชลบุรี', '0105562013890'),
+('CUST-005', 'ไทย ซิปปิ้ง โซลูชั่นส์', 'บจก. ไทยซิปปิ้งแอนด์พอร์ต', '081-111-2222', 'th_shipping', 30, '15/9 ถ.สุขุมวิท ต.บึง อ.ศรีราชา จ.ชลบุรี', '0205567083111'),
+('CUST-006', 'อีสเทิร์น โลจิสติคส์ ฮับ', 'บจก. อีสเทิร์น ทรานสปอร์ต โซลูชั่นส์', '085-333-4444', 'east_logis', 30, '120 ม.4 ต.พิณทอง อ.ศรีราชา จ.ชลบุรี', '0105565012345'),
+('CUST-007', 'รวมโชคการค้า แหลมฉบัง', 'หจก. รวมโชคทรานสปอร์ตแอนด์เทรด', '086-777-1111', 'ruamchok_lcb', 60, '18/2 ม.8 ต.สุรศักดิ์ อ.ศรีราชา จ.ชลบุรี', '0205566023456'),
+('CUST-008', 'อมตะ ดีเวลลอปเมนท์ แมนูแฟคเจอริ่ง', 'บจก. อมตะ แมนูแฟคเจอริ่ง จรุงจิต', '038-777-666', 'amata_dev', 45, '700/12 ม.1 นิคมอุตสาหกรรมอมตะ ชลบุรี', '0105563034567'),
+('CUST-009', 'โกลบอล บอร์เดอร์ ลิ้งค์', 'บจก. โกลบอล แทร็กกิ้ง ประเทศไทย', '02-555-9999', 'global_border', 30, '555 อาคารโกลบอล ถ.รุ่งเรือง เขตคลองเตย กรุงเทพฯ', '0105562045678'),
+('CUST-010', 'แปซิฟิก คีย์ ซิปปิ้ง', 'บจก. แปซิฟิก ซิปปิ้ง ซัพพอร์ต', '083-999-0000', 'pacific_keys', 45, '88 ม.2 ต.บางพระ อ.ศรีราชา จ.ชลบุรี', '0105561056789');
 
 -- 3. Seed Vehicles
 INSERT INTO vehicles (license_plate, type, brand, year, act_expiry, ins_expiry, status) VALUES
@@ -452,7 +462,8 @@ export async function fetchAllSupabaseData(): Promise<SupabaseDataState> {
       phone: r.phone || '',
       line: r.line || '',
       creditTerm: r.credit_term || 0,
-      address: r.address || ''
+      address: r.address || '',
+      taxId: r.tax_id || ''
     })),
     drivers: (drvRes.data || []).map(r => ({
       id: r.id,
@@ -585,7 +596,8 @@ export async function pushAllLocalDataToSupabase(state: SupabaseDataState): Prom
       phone: c.phone,
       line: c.line,
       credit_term: c.creditTerm,
-      address: c.address
+      address: c.address,
+      tax_id: c.taxId || ''
     }));
     await supabase.from('customers').upsert(custData);
   }
@@ -769,7 +781,8 @@ export async function dbSaveCustomer(cust: Customer) {
     phone: cust.phone,
     line: cust.line,
     credit_term: cust.creditTerm,
-    address: cust.address
+    address: cust.address,
+    tax_id: cust.taxId || ''
   });
   if (error) throw error;
 }
@@ -1031,16 +1044,16 @@ export async function seedSupabaseTablesJS(): Promise<{ success: boolean; messag
 
     // 2. Customers
     const customersData = [
-      { id: 'CUST-001', name: 'ศรีราชา คอนเทนเนอร์ บลู บูล', company: 'บจก. ศรีราชาทรานสปอร์ตคลับ', phone: '081-2345678', line: 'sri_con_lg', credit_term: 30, address: '99/9 ม.5 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี' },
-      { id: 'CUST-002', name: 'แหลมฉบัง ซัพพลาย แอนด์ โลจิสติกส์', company: 'บจก. แหลมฉบังทรานสปอร์ต กรุ๊ป', phone: '089-8765432', line: 'lcb_supply', credit_term: 60, address: '102/51 หมู่ 10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี' },
-      { id: 'CUST-003', name: 'ซีจี คาร์โก้ โลจิสติกส์', company: 'บจก. ซีจี คาร์โก เอเชีย', phone: '038-123456', line: 'cg_cargo', credit_term: 30, address: '45/1 ม.3 ต.หนองขาม อ.ศรีราชา จ.ชลบุรี' },
-      { id: 'CUST-004', name: 'ชลบุรี อินเตอร์เทรด 2026', company: 'บจก. ชลบุรีอินเตอร์คอมเพล็กซ์', phone: '02-999-8888', line: 'cb_inter', credit_term: 45, address: '200 ถนนลงหาดบางแสน ต.แสนสุข อ.เมือง จ.ชลบุรี' },
-      { id: 'CUST-005', name: 'ไทย ซิปปิ้ง โซลูชั่นส์', company: 'บจก. ไทยซิปปิ้งแอนด์พอร์ต', phone: '081-111-2222', line: 'th_shipping', credit_term: 30, address: '15/9 ถ.สุขุมวิท ต.บึง อ.ศรีราชา จ.ชลบุรี' },
-      { id: 'CUST-006', name: 'อีสเทิร์น โลจิสติคส์ ฮับ', company: 'บจก. อีสเทิร์น ทรานสปอร์ต โซลูชั่นส์', phone: '085-333-4444', line: 'east_logis', credit_term: 30, address: '120 ม.4 ต.พิณทอง อ.ศรีราชา จ.ชลบุรี' },
-      { id: 'CUST-007', name: 'รวมโชคการค้า แหลมฉบัง', company: 'หจก. รวมโชคทรานสปอร์ตแอนด์เทรด', phone: '086-777-1111', line: 'ruamchok_lcb', credit_term: 60, address: '18/2 ม.8 ต.สุรศักดิ์ อ.ศรีราชา จ.ชลบุรี' },
-      { id: 'CUST-008', name: 'อมตะ ดีเวลลอปเมนท์ แมนูแฟคเจอริ่ง', company: 'บจก. อมตะ แมนูแฟคเจอริ่ง จรุงจิต', phone: '038-777-666', line: 'amata_dev', credit_term: 45, address: '700/12 ม.1 นิคมอุตสาหกรรมอมตะ ชลบุรี' },
-      { id: 'CUST-009', name: 'โกลบอล บอร์เดอร์ ลิ้งค์', company: 'บจก. โกลบอล แทร็กกิ้ง ประเทศไทย', phone: '02-555-9999', line: 'global_border', credit_term: 30, address: '555 อาคารโกลบอล ถ.รุ่งเรือง เขตคลองเตย กรุงเทพฯ' },
-      { id: 'CUST-010', name: 'แปซิฟิก คีย์ ซิปปิ้ง', company: 'บจก. แปซิฟิก ซิปปิ้ง ซัพพอร์ต', phone: '083-999-0000', line: 'pacific_keys', credit_term: 45, address: '88 ม.2 ต.บางพระ อ.ศรีราชา จ.ชลบุรี' }
+      { id: 'CUST-001', name: 'ศรีราชา คอนเทนเนอร์ บลู บูล', company: 'บจก. ศรีราชาทรานสปอร์ตคลับ', phone: '081-2345678', line: 'sri_con_lg', credit_term: 30, address: '99/9 ม.5 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี', tax_id: '0105564019280' },
+      { id: 'CUST-002', name: 'แหลมฉบัง ซัพพลาย แอนด์ โลจิสติกส์', company: 'บจก. แหลมฉบังทรานสปอร์ต กรุ๊ป', phone: '089-8765432', line: 'lcb_supply', credit_term: 60, address: '102/51 หมู่ 10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี', tax_id: '0105559021234' },
+      { id: 'CUST-003', name: 'ซีจี คาร์โก้ โลจิสติกส์', company: 'บจก. ซีจี คาร์โก เอเชีย', phone: '038-123456', line: 'cg_cargo', credit_term: 30, address: '45/1 ม.3 ต.หนองขาม อ.ศรีราชา จ.ชลบุรี', tax_id: '0205568019999' },
+      { id: 'CUST-004', name: 'ชลบุรี อินเตอร์เทรด 2026', company: 'บจก. ชลบุรีอินเตอร์คอมเพล็กซ์', phone: '02-999-8888', line: 'cb_inter', credit_term: 45, address: '200 ถนนลงหาดบางแสน ต.แสนสุข อ.เมือง จ.ชลบุรี', tax_id: '0105562013890' },
+      { id: 'CUST-005', name: 'ไทย ซิปปิ้ง โซลูชั่นส์', company: 'บจก. ไทยซิปปิ้งแอนด์พอร์ต', phone: '081-111-2222', line: 'th_shipping', credit_term: 30, address: '15/9 ถ.สุขุมวิท ต.บึง อ.ศรีราชา จ.ชลบุรี', tax_id: '0205567083111' },
+      { id: 'CUST-006', name: 'อีสเทิร์น โลจิสติคส์ ฮับ', company: 'บจก. อีสเทิร์น ทรานสปอร์ต โซลูชั่นส์', phone: '085-333-4444', line: 'east_logis', credit_term: 30, address: '120 ม.4 ต.พิณทอง อ.ศรีราชา จ.ชลบุรี', tax_id: '0105565012345' },
+      { id: 'CUST-007', name: 'รวมโชคการค้า แหลมฉบัง', company: 'หจก. รวมโชคทรานสปอร์ตแอนด์เทรด', phone: '086-777-1111', line: 'ruamchok_lcb', credit_term: 60, address: '18/2 ม.8 ต.สุรศักดิ์ อ.ศรีราชา จ.ชลบุรี', tax_id: '0205566023456' },
+      { id: 'CUST-008', name: 'อมตะ ดีเวลลอปเมนท์ แมนูแฟคเจอริ่ง', company: 'บจก. อมตะ แมนูแฟคเจอริ่ง จรุงจิต', phone: '038-777-666', line: 'amata_dev', credit_term: 45, address: '700/12 ม.1 นิคมอุตสาหกรรมอมตะ ชลบุรี', tax_id: '0105563034567' },
+      { id: 'CUST-009', name: 'โกลบอล บอร์เดอร์ ลิ้งค์', company: 'บจก. โกลบอล แทร็กกิ้ง ประเทศไทย', phone: '02-555-9999', line: 'global_border', credit_term: 30, address: '555 อาคารโกลบอล ถ.รุ่งเรือง เขตคลองเตย กรุงเทพฯ', tax_id: '0105562045678' },
+      { id: 'CUST-010', name: 'แปซิฟิก คีย์ ซิปปิ้ง', company: 'บจก. แปซิฟิก ซิปปิ้ง ซัพพอร์ต', phone: '083-999-0000', line: 'pacific_keys', credit_term: 45, address: '88 ม.2 ต.บางพระ อ.ศรีราชา จ.ชลบุรี', tax_id: '0105561056789' }
     ];
     await supabase.from('customers').upsert(customersData);
 

@@ -98,7 +98,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
 
   const updateContainerField = (index: number, field: keyof ContainerDetail, value: any) => {
     const updated = [...containers];
-    if (field === 'containerNo') {
+    if (field === 'containerNo' || field === 'otherExpenseName') {
       updated[index][field] = value;
     } else {
       updated[index][field] = parseFloat(value) || 0;
@@ -120,7 +120,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
 
     // Calculate total job amount based on sum of all containers
     const calculatedTotal = containers.reduce((sum, c) => 
-      sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff, 0
+      sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0
     );
 
     const updatedJob: TransportJob = {
@@ -503,6 +503,33 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
                           />
                         </div>
                       </div>
+
+                      {/* รายการค่าใช้จ่ายอื่น ๆ และจำนวนเงิน */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-[94%] border-t border-slate-200/60 pt-3 mt-1.5">
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-700 block">รายการค่าใช้จ่ายอื่น ๆ (Other Expense Name)</label>
+                          <input
+                            type="text"
+                            placeholder="เช่น ค่าล่วงเวลาตู้นอกเวลาทำงานปกติ หรืออื่น ๆ"
+                            value={c.otherExpenseName || ''}
+                            onChange={(e) => updateContainerField(idx, 'otherExpenseName', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none placeholder-slate-400"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-700 block">จำนวนยอดเงินเพิ่มเติม (Amount)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={c.otherExpenseAmount || ''}
+                            onChange={(e) => updateContainerField(idx, 'otherExpenseAmount', e.target.value)}
+                            className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none text-right font-bold text-indigo-600"
+                          />
+                        </div>
+                      </div>
+
                     </div>
                   ))}
                 </div>
@@ -514,7 +541,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
                 <span className="text-xl font-bold font-mono text-emerald-400">
                   {formatCurrency(
                     containers.reduce((sum, c) => 
-                      sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff, 0
+                      sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0
                     )
                   )}
                 </span>

@@ -6,6 +6,18 @@ import {
 import { Invoice, Customer, TransportJob, ContainerDetail, AdvanceItem } from '../types';
 import { arabicToThaiBaht, formatCurrency, getStatusStyle } from '../utils';
 
+function formatInvoiceDate(dateStr: string) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    return `${day}/${month}/${year}`;
+  }
+  return dateStr;
+}
+
 interface InvoicesViewProps {
   invoices: Invoice[];
   customers: Customer[];
@@ -108,7 +120,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
     if (invoiceType === 'Transport') {
       // TRANSPORT: 1% Withholding Tax, NO VAT
       subtotal = containers.reduce((sum, c) => 
-        sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff, 0
+        sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0
       );
       withholdingTax = Math.round(subtotal * 0.01 * 100) / 100;
       vatAmount = 0;
@@ -449,7 +461,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </div>
                   ) : (
                     containers.map((c, idx) => (
-                      <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-5 gap-3 relative">
+                      <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 relative">
                         <button
                           type="button"
                           onClick={() => setContainers(containers.filter((_, i) => i !== idx))}
@@ -457,73 +469,107 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-600 block mb-0.5">ตู้คอนเทนเนอร์ No</label>
-                          <input 
-                            type="text" 
-                            value={c.containerNo}
-                            onChange={(e) => {
-                              const list = [...containers];
-                              list[idx].containerNo = e.target.value;
-                              setContainers(list);
-                            }}
-                            placeholder="ตู้ที่..."
-                            className="bg-white w-full text-xs font-mono font-bold border border-slate-200 rounded p-2 outline-none"
-                            required
-                          />
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">ตู้คอนเทนเนอร์ No</label>
+                            <input 
+                              type="text" 
+                              value={c.containerNo}
+                              onChange={(e) => {
+                                const list = [...containers];
+                                list[idx].containerNo = e.target.value;
+                                setContainers(list);
+                              }}
+                              placeholder="ตู้ที่..."
+                              className="bg-white w-full text-xs font-mono font-bold border border-slate-200 rounded p-2 outline-none"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Transportation Fee</label>
+                            <input 
+                              type="number" 
+                              value={c.transportation || ''}
+                              onChange={(e) => {
+                                const list = [...containers];
+                                list[idx].transportation = parseFloat(e.target.value) || 0;
+                                setContainers(list);
+                              }}
+                              className="bg-white w-full text-xs font-mono font-bold border border-slate-200 rounded p-2 outline-none text-right"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Port Charge</label>
+                            <input 
+                              type="number" 
+                              value={c.portCharge || ''}
+                              onChange={(e) => {
+                                const list = [...containers];
+                                list[idx].portCharge = parseFloat(e.target.value) || 0;
+                                setContainers(list);
+                              }}
+                              className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Handling Fee</label>
+                            <input 
+                              type="number" 
+                              value={c.containerHandling || ''}
+                              onChange={(e) => {
+                                const list = [...containers];
+                                list[idx].containerHandling = parseFloat(e.target.value) || 0;
+                                setContainers(list);
+                              }}
+                              className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Lift On/Off</label>
+                            <input 
+                              type="number" 
+                              value={c.liftOnOff || ''}
+                              onChange={(e) => {
+                                const list = [...containers];
+                                list[idx].liftOnOff = parseFloat(e.target.value) || 0;
+                                setContainers(list);
+                              }}
+                              className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right"
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Transportation Fee</label>
-                          <input 
-                            type="number" 
-                            value={c.transportation || ''}
-                            onChange={(e) => {
-                              const list = [...containers];
-                              list[idx].transportation = parseFloat(e.target.value) || 0;
-                              setContainers(list);
-                            }}
-                            className="bg-white w-full text-xs font-mono font-bold border border-slate-200 rounded p-2 outline-none text-right"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Port Charge</label>
-                          <input 
-                            type="number" 
-                            value={c.portCharge || ''}
-                            onChange={(e) => {
-                              const list = [...containers];
-                              list[idx].portCharge = parseFloat(e.target.value) || 0;
-                              setContainers(list);
-                            }}
-                            className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Handling Fee</label>
-                          <input 
-                            type="number" 
-                            value={c.containerHandling || ''}
-                            onChange={(e) => {
-                              const list = [...containers];
-                              list[idx].containerHandling = parseFloat(e.target.value) || 0;
-                              setContainers(list);
-                            }}
-                            className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Lift On/Off</label>
-                          <input 
-                            type="number" 
-                            value={c.liftOnOff || ''}
-                            onChange={(e) => {
-                              const list = [...containers];
-                              list[idx].liftOnOff = parseFloat(e.target.value) || 0;
-                              setContainers(list);
-                            }}
-                            className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right"
-                          />
+
+                        {/* รายการค่าใช้จ่ายอื่น ๆ และจำนวนเงินเพิ่มเติม */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-slate-200/60 pt-3 mt-1.5">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-700 block mb-0.5">รายการค่าใช้จ่ายอื่น ๆ (Other Expense Name)</label>
+                            <input 
+                              type="text" 
+                              value={c.otherExpenseName || ''}
+                              onChange={(e) => {
+                                const list = [...containers];
+                                list[idx].otherExpenseName = e.target.value;
+                                setContainers(list);
+                              }}
+                              placeholder="ระบุชื่อรายการ เช่น ค่าล่วงเวลา หรืออื่น ๆ"
+                              className="bg-white w-full text-xs border border-slate-200 rounded p-2 outline-none placeholder-slate-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-700 block mb-0.5">จำนวนยอดเงินเพิ่มเติม (Amount)</label>
+                            <input 
+                              type="number" 
+                              value={c.otherExpenseAmount || ''}
+                              onChange={(e) => {
+                                const list = [...containers];
+                                list[idx].otherExpenseAmount = parseFloat(e.target.value) || 0;
+                                setContainers(list);
+                              }}
+                              placeholder="0.00"
+                              className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right font-bold text-indigo-600"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))
@@ -590,7 +636,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                   <span className="font-mono text-slate-200">
                     {formatCurrency(
                       invoiceType === 'Transport' 
-                        ? containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff, 0)
+                        ? containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0)
                         : advanceItems.reduce((sum, item) => sum + item.amount, 0)
                     )}
                   </span>
@@ -600,7 +646,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     <span>หักภาษี ณ ที่จ่าย 1% สะสม:</span>
                     <span className="font-mono">
                       -{formatCurrency(
-                        Math.round(containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff, 0) * 0.01 * 100) / 100
+                        Math.round(containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0) * 0.01 * 100) / 100
                       )}
                     </span>
                   </div>
@@ -619,7 +665,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                   <span className="text-emerald-400">
                     {formatCurrency(
                       invoiceType === 'Transport'
-                        ? containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff, 0) - Math.round(containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff, 0) * 0.01 * 100) / 100
+                        ? containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0) - Math.round(containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0) * 0.01 * 100) / 100
                         : advanceItems.reduce((sum, item) => sum + item.amount, 0) + Math.round(advanceItems.reduce((sum, item) => sum + item.amount, 0) * 0.07 * 100) / 100
                     )}
                   </span>
@@ -661,16 +707,34 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrint}
-                className="bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1 transition-colors border border-slate-200"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
               >
-                สั่งพิมพ์ (Print)
+                <Printer className="w-3.5 h-3.5" /> สั่งพิมพ์ (Print)
+              </button>
+              <button
+                onClick={handlePrint}
+                className="bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 border border-slate-200 transition-colors cursor-pointer shadow-sm"
+              >
+                <FileText className="w-3.5 h-3.5 text-red-500" /> บันทึก/ส่งออก PDF (Export PDF)
               </button>
               <button
                 onClick={() => setPreviewInvoice(null)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors border border-slate-700"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors border border-slate-700 cursor-pointer"
               >
                 ย้อนกลับ (Close)
               </button>
+            </div>
+          </div>
+
+          {/* PDF/Print Guidelines Alert Banner */}
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-xs flex items-start gap-2.5 max-w-4xl mx-auto no-print shadow-sm">
+            <span className="text-base shrink-0 leading-none">💡</span>
+            <div className="space-y-1">
+              <div className="font-bold text-amber-950">คำแนะนำการพิมพ์และการดาวน์โหลดเอกสาร PDF จากเบราว์เซอร์:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-amber-900 leading-relaxed font-sans">
+                <li>เมื่อหน้าต่างพิมพ์ปรากฏขึ้น ให้เลือกเปลี่ยน <strong>"ปลายทาง" (Destination)</strong> เป็น <strong>"บันทึกเป็น PDF" (Save as PDF)</strong> สำหรับส่งออกไฟล์</li>
+                <li>ภายใต้หัวข้อการตั้งค่าเพิ่มเติม ตรวจสอบให้แน่ใจว่าได้คลิกทำเครื่องหมายที่ <strong>"กราฟิกพื้นหลัง" (Background graphics)</strong> เพื่อแสดงสี พื้นหลัง และเส้นขอบตารางที่สมบูรณ์</li>
+              </ul>
             </div>
           </div>
 
@@ -680,6 +744,10 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             <style>
               {`
                 @media print {
+                  body {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
                   body * {
                     visibility: hidden;
                   }
@@ -695,6 +763,8 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     box-shadow: none;
                     padding: 0;
                     margin: 0;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
                   }
                   .no-print {
                     display: none !important;
@@ -704,28 +774,44 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             </style>
 
             {/* Corporate Header Section matching align */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b-2 border-slate-950 pb-6">
-              <div className="space-y-1">
-                <h1 className="text-xl font-black tracking-tight text-slate-900 font-sans block">บริษัท เข็มทิศ ทานสปอร์ต จำกัด</h1>
-                <p className="text-slate-600 block">102/51 หมู่ 10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
-                <div className="text-[11px] text-slate-500 font-mono space-y-0.5 block">
-                  <div>โทร : <span className="font-bold text-slate-800 text-[11px]">095-7757467</span></div>
-                  <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-800 text-[11px]">0205568017041</span> (สำนักงานใหญ่)</div>
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-305 pb-6">
+              <div className="flex gap-4 items-start">
+                {/* SVG Compass Logo stamp */}
+                <div className="w-16 h-16 rounded-full border-2 border-slate-300 p-1 flex items-center justify-center shrink-0">
+                  <svg viewBox="0 0 100 100" className="w-full h-full text-slate-400">
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2" />
+                    <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" strokeWidth="1" />
+                    <polygon points="50,15 55,45 50,50" fill="currentColor" />
+                    <polygon points="50,85 45,55 50,50" fill="currentColor" opacity="0.7" />
+                    <polygon points="85,50 55,45 50,50" fill="currentColor" />
+                    <polygon points="15,50 45,55 50,50" fill="currentColor" opacity="0.7" />
+                    <text x="50" y="54" fontSize="10" textAnchor="middle" fontWeight="bold" fill="currentColor">KTT</text>
+                  </svg>
+                </div>
+                <div className="space-y-1">
+                  <h1 className="text-[15px] font-bold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
+                  <p className="text-slate-600 block text-[11px]">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
+                  <div className="text-[11px] text-slate-600 space-y-0.5 block font-mono">
+                    <div>โทรศัพท์ : <span className="font-bold text-slate-800">095-7757467</span></div>
+                    <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-800">0205568017041</span></div>
+                  </div>
                 </div>
               </div>
-              <div className="text-right space-y-1">
-                {previewInvoice.invoiceType === 'Transport' ? (
-                  <h2 className="text-lg font-black text-indigo-700 bg-indigo-50 border border-indigo-200 p-2.5 rounded-lg inline-block whitespace-nowrap">
-                    ใบแจ้งหนี้ค่าขนส่ง (LOGISTICS INVOICE)
-                  </h2>
-                ) : (
-                  <h2 className="text-lg font-black text-rose-700 bg-rose-50 border border-rose-200 p-2.5 rounded-lg inline-block whitespace-nowrap">
-                    ใบแจ้งหนี้เงินทดรองจ่าย (ADVANCE STATEMENT)
-                  </h2>
-                )}
-                <div className="font-mono text-[11px] text-slate-500 space-y-0.5 pt-2">
-                  <div>เลขที่เอกสาร No: <span className="font-bold text-slate-800 text-[11px]">{previewInvoice.invoiceNo}</span></div>
-                  <div>วันที่เอกสาร Date: <span className="font-bold text-slate-800 text-[11px]">{previewInvoice.date}</span></div>
+
+              <div className="text-right space-y-3 shrink-0">
+                <div className="text-right">
+                  <h2 className="text-2xl font-bold tracking-[0.1em] text-slate-900 font-serif leading-none">INVOICE</h2>
+                  <p className="text-[11px] text-slate-700 font-bold mt-1">ใบวางบิล/ใบแจ้งหนี้</p>
+                </div>
+                <div className="text-[11px] text-slate-600 space-y-1 pt-1 font-mono">
+                  <div className="flex justify-end gap-6">
+                    <span className="text-slate-500">เลขที่</span>
+                    <span className="font-bold text-slate-900 w-24 text-left">{previewInvoice.invoiceNo}</span>
+                  </div>
+                  <div className="flex justify-end gap-6">
+                    <span className="text-slate-500">วันที่</span>
+                    <span className="font-bold text-slate-900 w-24 text-left">{formatInvoiceDate(previewInvoice.date)}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -733,66 +819,139 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             {/* Client address details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 border-b border-slate-200">
               <div className="space-y-1">
-                <span className="text-slate-400 font-bold block">ลูกค้าผู้รับบริการ (Bill To):</span>
-                <span className="text-sm font-extrabold text-slate-900 block">{previewInvoice.customerName}</span>
-                <p className="text-slate-600 font-serif leading-relaxed text-[11px]">
-                  ที่อยู่จดทะเบียน: {customers.find(c => c.name === previewInvoice.customerName)?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี'}
+                <span className="text-slate-400 text-[10px] font-bold block uppercase tracking-wider">Customers</span>
+                <span className="text-sm font-bold text-slate-900 block">{previewInvoice.customerName}</span>
+                <p className="text-slate-750 leading-relaxed text-[11px]">
+                  ที่อยู่ : {customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี'}
                 </p>
-                <span className="text-slate-500 font-mono text-[11px] block">
-                  โทร: {customers.find(c => c.name === previewInvoice.customerName)?.phone || '081-xxxxxxx'}
-                </span>
+                <div className="text-slate-600 text-[11px] font-mono space-y-0.5">
+                  <div>โทร : <span className="font-bold text-slate-850">{customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.phone || '081-xxxxxxx'}</span></div>
+                  {customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.phone && (
+                    <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-850">0205560001196</span> (สำนักงานใหญ่)</div>
+                  )}
+                </div>
               </div>
-              <div className="space-y-1 sm:text-right font-mono text-[11px] text-slate-600 bg-slate-50/55 p-3.5 rounded-lg border border-slate-150">
-                <div>รหัสผู้ทำรายการ Booking No: <span className="font-bold text-slate-900">{previewInvoice.bookingNo || '-'}</span></div>
-                <div>ตัวแทนสายเรือจัดส่ง Shipper: <span className="font-bold text-slate-900">{previewInvoice.shipper || '-'}</span></div>
-                <div>เลขแผนปฏิบัติการวิ่งงาน Job: <span className="font-bold text-slate-900">{previewInvoice.jobNo || '-'}</span></div>
+              <div className="text-right">
+                {/* Clean blank space on the right, as requested by arrow relocation */}
               </div>
             </div>
 
             {/* Invoiced Items Table */}
             <div className="py-6">
               {previewInvoice.invoiceType === 'Transport' ? (
-                <table className="w-full text-left text-[11px] border-collapse border border-slate-300">
+                <table className="w-full text-left text-[11px] border-collapse">
                   <thead>
-                    <tr className="bg-slate-100 text-slate-800 border-b border-slate-300">
-                      <th className="p-2 border-r border-slate-300 font-bold">ตู้คอนเทนเนอร์ (Container No)</th>
-                      <th className="p-2 border-r border-slate-300 font-bold text-right">ค่าขนส่ง (Transportation)</th>
-                      <th className="p-2 border-r border-slate-300 font-bold text-right">ค่าบริการท่าเรือ (Port Charge)</th>
-                      <th className="p-2 border-r border-slate-300 font-bold text-right">ค่าภาระยกย้ายตู้ (Handling)</th>
-                      <th className="p-2 border-r border-slate-300 font-bold text-right">ค่ายกขึ้น-ลงตู้ (Lift On/Off)</th>
-                      <th className="p-2 font-bold text-right text-slate-950">รวมค่าขนส่ง</th>
+                    <tr className="border-b border-t border-slate-400 text-slate-505 font-bold text-[10px] bg-slate-50/50">
+                      <th className="p-2 w-16 text-center">ลำดับ<br/>Item</th>
+                      <th className="p-2 min-w-[250px]">รายการ<br/>Description</th>
+                      <th className="p-2 w-20 text-center">จำนวน<br/>Quantity</th>
+                      <th className="p-2 w-28 text-right">หน่วยละ<br/>Unit</th>
+                      <th className="p-2 w-32 text-right text-slate-950">จำนวนเงินสุทธิ<br/>Net Amount (Baht)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {previewInvoice.containers.map((c, i) => {
-                      const totalC = c.transportation + c.portCharge + c.containerHandling + c.liftOnOff;
+                  <tbody className="divide-y divide-slate-100">
+                    {/* First row relocate Shipper & Booking No to the start of item rows */}
+                    {(previewInvoice.shipper || previewInvoice.bookingNo) && (
+                      <tr className="border-b border-slate-200">
+                        <td className="p-2 text-center"></td>
+                        <td className="p-2 font-mono text-[11px] text-slate-700 bg-slate-50/15" colSpan={4}>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 py-1">
+                            <div className="flex">
+                              <span className="w-24 text-slate-400 font-sans font-bold">Shipper</span>
+                              <span className="font-extrabold text-slate-800">{previewInvoice.shipper || '-'}</span>
+                            </div>
+                            <div className="flex">
+                              <span className="w-24 text-slate-400 font-sans font-bold">Booking no.</span>
+                              <span className="font-extrabold text-slate-800">{previewInvoice.bookingNo || '-'}</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
+                    {previewInvoice.containers.map((c, containerIndex) => {
+                      const charges = [];
+                      if (c.transportation > 0) {
+                        charges.push({ name: 'Transportation', amount: c.transportation });
+                      }
+                      if (c.portCharge > 0) {
+                        charges.push({ name: 'Port Charge', amount: c.portCharge });
+                      }
+                      if (c.containerHandling > 0) {
+                        charges.push({ name: 'Container Handling', amount: c.containerHandling });
+                      }
+                      if (c.liftOnOff > 0) {
+                        charges.push({ name: 'Life on / Life off', amount: c.liftOnOff });
+                      }
+                      if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
+                        charges.push({ name: c.otherExpenseName || 'Other Charge / ค่าบริการอื่นๆ', amount: c.otherExpenseAmount });
+                      }
+
                       return (
-                        <tr key={i} className="hover:bg-slate-50/40">
-                          <td className="p-2 border-r border-slate-300 font-mono font-bold text-slate-800">{c.containerNo}</td>
-                          <td className="p-2 border-r border-slate-300 text-right font-mono">{formatCurrency(c.transportation)}</td>
-                          <td className="p-2 border-r border-slate-300 text-right font-mono">{formatCurrency(c.portCharge)}</td>
-                          <td className="p-2 border-r border-slate-300 text-right font-mono">{formatCurrency(c.containerHandling)}</td>
-                          <td className="p-2 border-r border-slate-300 text-right font-mono">{formatCurrency(c.liftOnOff)}</td>
-                          <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatCurrency(totalC)}</td>
-                        </tr>
+                        <React.Fragment key={containerIndex}>
+                          <tr className="font-bold border-none">
+                            <td className="p-2 text-center text-slate-700 font-sans">{containerIndex + 1}</td>
+                            <td className="p-2 font-semibold text-slate-950 font-mono">
+                              Cntr no. &nbsp;&nbsp;&nbsp;&nbsp; {c.containerNo || '-'}
+                            </td>
+                            <td className="p-2 text-center"></td>
+                            <td className="p-2 text-right"></td>
+                            <td className="p-2 text-right"></td>
+                          </tr>
+
+                          {charges.map((ch, chIdx) => (
+                            <tr key={chIdx} className="text-slate-600 border-none">
+                              <td className="p-1 px-2 text-center"></td>
+                              <td className="p-1 px-2 pl-8 font-serif italic text-slate-650">
+                                {ch.name}
+                              </td>
+                              <td className="p-1 px-2 text-center font-mono text-[10px]">1</td>
+                              <td className="p-1 px-2 text-right font-mono">{formatCurrency(ch.amount)}</td>
+                              <td className="p-1 px-2 text-right font-mono">{formatCurrency(ch.amount)}</td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
                 </table>
               ) : (
-                <table className="w-full text-left text-[11px] border-collapse border border-slate-300">
+                <table className="w-full text-left text-[11px] border-collapse">
                   <thead>
-                    <tr className="bg-slate-100 text-slate-800 border-b border-slate-300">
-                      <th className="p-2.5 border-r border-slate-300 font-bold text-center w-12">ลำดับ</th>
-                      <th className="p-2.5 border-r border-slate-300 font-bold">รายละเอียดเงินทดรองจ่าย (Advance Items)</th>
-                      <th className="p-2.5 font-bold text-right text-slate-950 w-44">จำนวนเงินสำรองจ่าย</th>
+                    <tr className="border-b border-t border-slate-400 text-slate-505 font-bold text-[10px] bg-slate-50/50">
+                      <th className="p-2 w-16 text-center">ลำดับ<br/>Item</th>
+                      <th className="p-2 min-w-[250px]">รายการ<br/>Description</th>
+                      <th className="p-2 w-20 text-center">จำนวน<br/>Quantity</th>
+                      <th className="p-2 w-28 text-right">หน่วยละ<br/>Unit</th>
+                      <th className="p-2 w-32 text-right text-slate-950">จำนวนเงินสุทธิ<br/>Net Amount (Baht)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
+                  <tbody className="divide-y divide-slate-100">
+                    {/* First row relocate Shipper & Booking No to the start of item rows if present */}
+                    {(previewInvoice.shipper || previewInvoice.bookingNo) && (
+                      <tr className="border-b border-slate-200">
+                        <td className="p-2 text-center"></td>
+                        <td className="p-2 font-mono text-[11px] text-slate-700 bg-slate-50/15" colSpan={4}>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 py-1">
+                            <div className="flex">
+                              <span className="w-24 text-slate-400 font-sans font-bold">Shipper</span>
+                              <span className="font-extrabold text-slate-800">{previewInvoice.shipper || '-'}</span>
+                            </div>
+                            <div className="flex">
+                              <span className="w-24 text-slate-400 font-sans font-bold">Booking no.</span>
+                              <span className="font-extrabold text-slate-800">{previewInvoice.bookingNo || '-'}</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
                     {previewInvoice.advanceItems.map((item, i) => (
-                      <tr key={item.id} className="hover:bg-slate-50/40">
-                        <td className="p-2.5 border-r border-slate-300 text-center font-mono">{i + 1}</td>
-                        <td className="p-2.5 border-r border-slate-300 font-medium">{item.description}</td>
+                      <tr key={item.id} className="text-slate-800">
+                        <td className="p-2.5 text-center font-mono">{i + 1}</td>
+                        <td className="p-2.5 font-medium">{item.description}</td>
+                        <td className="p-2.5 text-center font-mono text-[10px]">1</td>
+                        <td className="p-2.5 text-right font-mono">{formatCurrency(item.amount)}</td>
                         <td className="p-2.5 text-right font-mono font-bold text-slate-900">{formatCurrency(item.amount)}</td>
                       </tr>
                     ))}
@@ -802,53 +961,79 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             </div>
 
             {/* Calculations and Thai Baht words inside elegant design dotted borders */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-350 mt-4">
               <div className="md:col-span-2 flex items-center">
                 <div className="w-full border-2 border-dotted border-slate-400 p-4 rounded bg-slate-50 flex items-center justify-center min-h-[50px] relative">
                   <span className="text-[10px] text-slate-400 font-bold absolute top-1 left-2 uppercase tracking-wide">จำนวนยอดเงินตัวอักษรไทย (Thai Baht Text)</span>
                   <span className="text-xs font-semibold text-slate-800 text-center font-serif">
-                    ({previewInvoice.totalText})
+                    -- {previewInvoice.totalText} --
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-1.5 text-[11px] border bg-slate-50/30 p-4 rounded-lg border-slate-200">
-                <div className="flex justify-between text-slate-500 font-mono">
-                  <span>ยอดมูลค่าก่อนคำนวณ:</span>
+              <div className="space-y-1.5 text-[11px] border bg-slate-50/30 p-4 rounded-lg border-slate-200 font-mono">
+                <div className="flex justify-between text-slate-500">
+                  <span>รวมเงิน / Total</span>
                   <span className="font-bold">{formatCurrency(previewInvoice.subtotal)}</span>
                 </div>
                 {previewInvoice.invoiceType === 'Transport' ? (
-                  <div className="flex justify-between text-red-600 font-bold border-b border-slate-200 pb-1.5 font-mono">
-                    <span>หักภาษี ณ ที่จ่าย 1%:</span>
-                    <span>-{formatCurrency(previewInvoice.withholdingTax)}</span>
+                  <div className="flex justify-between text-red-650 font-semibold border-b border-slate-200 pb-1.5">
+                    <span>ภาษีหัก ณ ที่จ่าย 1%</span>
+                    <span>{formatCurrency(previewInvoice.withholdingTax)}</span>
                   </div>
                 ) : (
-                  <div className="flex justify-between text-emerald-600 font-bold border-b border-slate-200 pb-1.5 font-mono">
-                    <span>ภาษีมูลค่าเพิ่ม VAT 7%:</span>
-                    <span>+{formatCurrency(previewInvoice.vatAmount)}</span>
+                  <div className="flex justify-between text-emerald-655 font-semibold border-b border-slate-200 pb-1.5">
+                    <span>ภาษีมูลค่าเพิ่ม / Vat 7%</span>
+                    <span>{formatCurrency(previewInvoice.vatAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-1 font-mono">
-                  <span>ยอดชำระสุทธิสุทธิ:</span>
-                  <span className="text-indigo-700 text-sm font-bold">{formatCurrency(previewInvoice.grandTotal)}</span>
+                <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-2 border-t border-slate-200 font-mono">
+                  <span>ยอดชำระ / Total Net</span>
+                  <span className="text-slate-950 text-sm font-bold">{formatCurrency(previewInvoice.grandTotal)}</span>
                 </div>
               </div>
             </div>
 
             {/* Signatures Section */}
-            <div className="grid grid-cols-2 gap-12 pt-16 text-center text-[10px]">
+            <div className="grid grid-cols-2 gap-12 pt-16 text-center text-[10px] relative">
               <div className="space-y-12">
-                <div className="border-b border-slate-400 h-1 flex items-end justify-center"></div>
-                <div>
-                  <p className="font-bold">น.ส. สมศรี รักงาน</p>
-                  <p className="text-slate-400">ผู้จัดทำเอกสารและบัญชี (Prepared By)</p>
+                <div className="h-10"></div>
+                <div className="space-y-2">
+                  <p className="font-bold flex justify-center gap-2">
+                    <span>....................................................................</span>
+                  </p>
+                  <p className="font-bold text-slate-800">ผู้รับวางบิล</p>
+                  <p className="text-slate-505 flex justify-center gap-1">
+                    <span>วันที่</span>
+                    <span>.............................../................../..................</span>
+                  </p>
                 </div>
               </div>
-              <div className="space-y-12">
-                <div className="border-b border-slate-400 h-1 flex items-end justify-center"></div>
-                <div>
-                  <p className="font-bold text-slate-800">ลงชื่อยินยอม/ประทับตราประทับ</p>
-                  <p className="text-slate-400">ผู้มีอำนาจลงนามอนุมัติ (Authorized Signature)</p>
+              <div className="space-y-12 relative flex flex-col items-center">
+                {/* Stamp visual decoration matching KTT seal compass */}
+                <div className="absolute right-1/4 -top-8 w-24 h-24 rounded-full border-4 border-slate-300 border-double p-0.5 flex flex-col items-center justify-center opacity-45 select-none pointer-events-none rotate-6 text-slate-500">
+                  <div className="text-[7px] font-black tracking-widest leading-none text-center">KHEMTHIT<br/>TRANSPORT</div>
+                  <svg viewBox="0 0 100 100" className="w-8 h-8 text-slate-500 my-0.5">
+                    <polygon points="50,15 55,45 50,50" fill="currentColor" />
+                    <polygon points="50,85 45,55 50,50" fill="currentColor" />
+                    <polygon points="85,50 55,45 50,50" fill="currentColor" />
+                    <polygon points="15,50 45,55 50,50" fill="currentColor" />
+                  </svg>
+                  <div className="text-[7px] font-black leading-none text-center">ผู้วางบิล<br/>APPROVED</div>
+                </div>
+
+                <div className="h-10"></div>
+                
+                <div className="space-y-2 w-full">
+                  <p className="font-bold text-slate-800 leading-relaxed block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</p>
+                  <p className="font-bold flex justify-center gap-2">
+                    <span>....................................................................</span>
+                  </p>
+                  <p className="font-bold text-slate-800">ผู้วางบิล</p>
+                  <p className="text-slate-505 flex justify-center gap-1">
+                    <span>วันที่</span>
+                    <span>.............................../................../..................</span>
+                  </p>
                 </div>
               </div>
             </div>

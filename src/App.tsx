@@ -636,6 +636,7 @@ export default function App() {
           <ReceiptsView 
             receipts={state.receipts}
             invoices={state.invoices}
+            customers={state.customers}
             onSaveReceipt={(receipt) => {
               updateStateAndPersist(prev => {
                 const list = [...prev.receipts];

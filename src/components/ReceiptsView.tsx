@@ -3,17 +3,30 @@ import {
   Plus, Edit2, Trash2, Search, X, FileText, Printer, Save, 
   Layers, CheckCircle, HelpCircle
 } from 'lucide-react';
-import { Receipt, Invoice } from '../types';
+import { Receipt, Invoice, Customer } from '../types';
 import { arabicToThaiBaht, formatCurrency } from '../utils';
+
+function formatReceiptDate(dateStr: string) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    return `${day}/${month}/${year}`;
+  }
+  return dateStr;
+}
 
 interface ReceiptsViewProps {
   receipts: Receipt[];
   invoices: Invoice[];
+  customers: Customer[];
   onSaveReceipt: (receipt: Receipt) => void;
   onDeleteReceipt: (receiptNo: string) => void;
 }
 
-export function ReceiptsView({ receipts, invoices, onSaveReceipt, onDeleteReceipt }: ReceiptsViewProps) {
+export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onDeleteReceipt }: ReceiptsViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [previewReceipt, setPreviewReceipt] = useState<Receipt | null>(null);
@@ -266,7 +279,7 @@ export function ReceiptsView({ receipts, invoices, onSaveReceipt, onDeleteReceip
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value as any)}
-                className="w-full text-xs bg-white text-slate-800 border border-slate-350 p-2.5 rounded-lg outline-none"
+                className="w-full text-xs bg-white text-slate-800 border border-slate-250 p-2.5 rounded-lg outline-none"
               >
                 <option value="โอนเงิน">โอนเงินเข้าบัญชีธนาคาร (หลัก)</option>
                 <option value="เงินสด">ชำระด้วยเงินสดหน้างาน</option>
@@ -306,17 +319,35 @@ export function ReceiptsView({ receipts, invoices, onSaveReceipt, onDeleteReceip
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={handlePrint}
-                className="bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1 border border-slate-200"
+                onClick={() => window.print()}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
               >
-                สั่งพิมพ์ (Print)
+                <Printer className="w-3.5 h-3.5" /> สั่งพิมพ์ (Print)
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 border border-slate-200 transition-colors cursor-pointer shadow-sm"
+              >
+                <FileText className="w-3.5 h-3.5 text-red-500" /> บันทึก/ส่งออก PDF (Export PDF)
               </button>
               <button
                 onClick={() => setPreviewReceipt(null)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg border border-slate-700"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg border border-slate-700 transition-colors cursor-pointer"
               >
                 ย้อนกลับ (Close)
               </button>
+            </div>
+          </div>
+
+          {/* PDF/Print Guidelines Alert Banner */}
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-xs flex items-start gap-2.5 max-w-4xl mx-auto no-print shadow-sm">
+            <span className="text-base shrink-0 leading-none">💡</span>
+            <div className="space-y-1">
+              <div className="font-bold text-amber-950">คำแนะนำการพิมพ์และการดาวน์โหลดเอกสาร PDF จากเบราว์เซอร์:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-amber-900 leading-relaxed font-sans">
+                <li>เมื่อหน้าต่างพิมพ์ปรากฏขึ้น ให้เลือกเปลี่ยน <strong>"ปลายทาง" (Destination)</strong> เป็น <strong>"บันทึกเป็น PDF" (Save as PDF)</strong> สำหรับส่งออกไฟล์</li>
+                <li>ภายใต้หัวข้อการตั้งค่าเพิ่มเติม ตรวจสอบให้แน่ใจว่าได้คลิกทำเครื่องหมายที่ <strong>"กราฟิกพื้นหลัง" (Background graphics)</strong> เพื่อแสดงสี พื้นหลัง และเส้นขอบตารางที่สมบูรณ์</li>
+              </ul>
             </div>
           </div>
 
@@ -324,6 +355,10 @@ export function ReceiptsView({ receipts, invoices, onSaveReceipt, onDeleteReceip
             <style>
               {`
                 @media print {
+                  body {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
                   body * {
                     visibility: hidden;
                   }
@@ -339,6 +374,8 @@ export function ReceiptsView({ receipts, invoices, onSaveReceipt, onDeleteReceip
                     box-shadow: none;
                     padding: 0;
                     margin: 0;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
                   }
                   .no-print {
                     display: none !important;
@@ -347,112 +384,196 @@ export function ReceiptsView({ receipts, invoices, onSaveReceipt, onDeleteReceip
               `}
             </style>
 
-            {/* Receipt Header block */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b-2 border-slate-900 pb-6">
-              <div className="space-y-1">
-                <h1 className="text-lg font-black text-slate-900 block">บริษัท เข็มทิศ ทานสปอร์ต จำกัด</h1>
-                <p className="text-slate-600 block">102/51 หมู่ 10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
-                <div className="text-[10px] text-slate-500 font-mono block">
-                  โทร: 095-7757467 | เลขประจำตัวผู้เสียภาษี: 0205568017041 (สำนักงานใหญ่)
-                </div>
-              </div>
-              <div className="text-right space-y-1">
-                <h2 className="text-lg font-black text-emerald-700 bg-emerald-50 border border-emerald-250 p-3.0 rounded-lg inline-block whitespace-nowrap uppercase">
-                  ใบเสร็จรับเงิน / ใบรับเงิน (RECEIPT)
-                </h2>
-                <div className="font-mono text-[11px] text-slate-500 space-y-0.5 pt-2">
-                  <div>รหัสกระดาษ No: <span className="font-bold text-slate-900">{previewReceipt.receiptNo}</span></div>
-                  <div>วันที่ชำระเงิน Date: <span className="font-bold text-slate-900">{previewReceipt.date}</span></div>
-                </div>
-              </div>
-            </div>
+            {
+              (() => {
+                const linkedInvoice = invoices.find(inv => inv.invoiceNo === previewReceipt.invoiceNo);
+                const subtotal = linkedInvoice?.subtotal || previewReceipt.amount;
+                const vatAmount = linkedInvoice?.vatAmount || 0;
+                const withholdingTax = linkedInvoice?.withholdingTax || 0;
+                const grandTotal = linkedInvoice?.grandTotal || previewReceipt.amount;
+                const totalText = linkedInvoice?.totalText || arabicToThaiBaht(previewReceipt.amount);
+                
+                const noOfTrans = previewReceipt.receiptType === 'Transport'
+                  ? (linkedInvoice?.containers?.length || 1)
+                  : (linkedInvoice?.advanceItems?.length || 1);
 
-            {/* Client Info block */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 border-b border-slate-200">
-              <div className="space-y-1">
-                <span className="text-slate-400 font-bold block">ข้อมูลผู้จ่ายเงิน (Received From):</span>
-                <span className="text-sm font-extrabold text-slate-900 block">{previewReceipt.customerName}</span>
-                <p className="text-slate-500 text-[11px]">
-                  อ้างอิงรหัสวางบิลดั้งเดิม: <span className="font-bold text-slate-800 font-mono">{previewReceipt.invoiceNo}</span>
-                </p>
-              </div>
-              <div className="space-y-1 sm:text-right font-mono text-[11px] text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-150">
-                <div>ช่องทางการชำระวิธี: <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{previewReceipt.paymentMethod}</span></div>
-                <div>ลักษณะแบบประกัน: {previewReceipt.receiptType === 'Transport' ? 'ค่าระเบียบขนส่งสินค้า' : 'เงินเบิกจ่ายทดรองล่วงหน้า'}</div>
-              </div>
-            </div>
+                const customerObj = customers?.find(c => c.name === previewReceipt.customerName || c.company === previewReceipt.customerName);
+                const clientAddress = customerObj?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี';
+                const clientPhone = customerObj?.phone || '';
+                const clientTaxId = (customerObj as any)?.taxId || '';
 
-            {/* Dynamic Rendering of Invoice Content */}
-            <div className="py-6 space-y-4">
-              <table className="w-full text-left text-[11px] border border-slate-300 border-collapse">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-310">
-                    <th className="p-2 border-r border-slate-300 w-12 text-center">ลำดับ</th>
-                    <th className="p-2 border-r border-slate-300">รายละเอียดงานบริการ</th>
-                    <th className="p-2 text-right">จำนวนยอดสุทธิรับเงินชำระแล้ว (บาท)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-250">
-                  <tr>
-                    <td className="p-3 border-r border-slate-300 text-center font-mono font-bold text-slate-500">1</td>
-                    <td className="p-3 border-r border-slate-300">
-                      <div className="font-bold text-slate-900">
-                        {previewReceipt.receiptType === 'Transport' 
-                          ? `รับชำระค่าดำเนินการขนส่งตู้สินค้าคอนเทนเนอร์ ตามใบแจ้งหนี้อ้างอิง ${previewReceipt.invoiceNo}`
-                          : `รับชำระค่าใช้จ่ายสำรองจ่ายล่วงหน้า (Advance Settlement) ตามใบแจ้งหนี้อ้างอิง ${previewReceipt.invoiceNo}`}
+                return (
+                  <>
+                    {/* Receipt Header block */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-300 pb-6">
+                      <div className="flex gap-4 items-start">
+                        {/* SVG Stamp logo */}
+                        <div className="w-16 h-16 rounded-full border-2 border-slate-300 p-1 flex items-center justify-center shrink-0">
+                          <svg viewBox="0 0 100 100" className="w-full h-full text-slate-400">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2" />
+                            <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" strokeWidth="1" />
+                            <polygon points="50,15 55,45 50,50" fill="currentColor" />
+                            <polygon points="50,85 45,55 50,50" fill="currentColor" opacity="0.7" />
+                            <polygon points="85,50 55,45 50,50" fill="currentColor" />
+                            <polygon points="15,50 45,55 50,50" fill="currentColor" opacity="0.7" />
+                            <text x="50" y="54" fontSize="10" textAnchor="middle" fontWeight="bold" fill="currentColor">KTT</text>
+                          </svg>
+                        </div>
+                        <div className="space-y-1">
+                          <h1 className="text-[14px] font-bold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
+                          <p className="text-slate-600 block text-[11px]">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
+                          <div className="text-[11px] text-slate-600 space-y-0.5 block font-mono">
+                            <div>โทรศัพท์ : <span className="font-bold text-slate-800">095-7757467</span></div>
+                            <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-800">0205568017041</span></div>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-slate-400 text-[10px] mt-1 italic">
-                        บริษัท ยินยอมรับมอบเงินครบถ้วนและยกเลิกข้อผูกมัดงวดภาระงานเรียบร้อยสมบูรณ์
-                      </p>
-                    </td>
-                    <td className="p-3 text-right font-mono font-extrabold text-slate-900 text-[13px] align-middle">
-                      {formatCurrency(previewReceipt.amount)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                      <div className="text-right space-y-3 shrink-0">
+                        <div className="text-right">
+                          <h2 className="text-lg font-bold tracking-[0.05em] text-slate-900 font-serif leading-none">ใบเสร็จรับเงิน / RECEIPT</h2>
+                          <p className="text-[10px] text-slate-500 font-sans tracking-widest mt-1">ORIGINAL /ต้นฉบับ</p>
+                        </div>
+                        <div className="text-[11px] text-slate-600 space-y-1 pt-1 font-mono">
+                          <div className="flex justify-end gap-6">
+                            <span className="text-slate-500">เลขที่</span>
+                            <span className="font-bold text-slate-900 w-24 text-left">{previewReceipt.receiptNo}</span>
+                          </div>
+                          <div className="flex justify-end gap-6">
+                            <span className="text-slate-500">วันที่</span>
+                            <span className="font-bold text-slate-900 w-24 text-left">{formatReceiptDate(previewReceipt.date)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-            {/* Total display with dotted pattern */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-200">
-              <div className="md:col-span-2 flex items-center">
-                <div className="w-full border-2 border-dotted border-slate-400 p-4 rounded bg-slate-50 flex items-center justify-center min-h-[50px] relative">
-                  <span className="text-[10px] text-slate-400 font-bold absolute top-1 left-2 uppercase tracking-wide">ยอดรวมรับเงินตัวอักษรไทย (Thai Baht Word)</span>
-                  <span className="text-xs font-bold text-slate-800 text-center font-serif">
-                    ({arabicToThaiBaht(previewReceipt.amount)})
-                  </span>
-                </div>
-              </div>
+                    {/* Client Info block */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 border-b border-slate-200">
+                      <div className="space-y-1">
+                        <span className="text-slate-400 text-[10px] font-bold block uppercase tracking-wider">Customers</span>
+                        <span className="text-sm font-bold text-slate-900 block">{previewReceipt.customerName}</span>
+                        <p className="text-slate-755 leading-relaxed text-[11px]">
+                          ที่อยู่ : {clientAddress}
+                        </p>
+                        <div className="text-slate-600 text-[11px] font-mono space-y-0.5">
+                          {clientPhone && <div>โทร : <span className="font-bold text-slate-850">{clientPhone}</span></div>}
+                          <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-850">{clientTaxId || '0205560001196'}</span></div>
+                        </div>
+                      </div>
+                      <div className="space-y-1 text-right font-mono text-[11px] text-slate-600">
+                        <div>เลขอ้างอิงใบวางบิล Invoice Ref: <span className="font-bold text-slate-900">{previewReceipt.invoiceNo}</span></div>
+                        <div>ช่องทางการชำระ Payment: <span className="font-bold text-slate-900">{previewReceipt.paymentMethod}</span></div>
+                      </div>
+                    </div>
 
-              <div className="bg-slate-900 text-white p-4 rounded-lg flex flex-col justify-center items-center shadow-md">
-                <span className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">ยอดรับเงินสุทธิ (NET INS)</span>
-                <span className="text-lg font-black text-emerald-400 font-mono mt-1">
-                  {formatCurrency(previewReceipt.amount)}
-                </span>
-              </div>
-            </div>
+                    {/* Items Table */}
+                    <div className="py-6">
+                      <table className="w-full text-left text-[11px] border-collapse">
+                        <thead>
+                          <tr className="border-b border-t border-slate-400 text-slate-500 font-bold text-[10px] bg-slate-50/50">
+                            <th className="p-2 w-16 text-center">ลำดับ<br/>Item</th>
+                            <th className="p-2">รายการ<br/>Description</th>
+                            <th className="p-2 w-36 text-center">จำนวนรายการ<br/>No. of Trans.</th>
+                            <th className="p-2 w-44 text-right text-slate-950">จำนวนเงิน<br/>Amount (Baht)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-sans">
+                          <tr className="text-slate-800">
+                            <td className="p-3 text-center font-mono text-slate-600">1</td>
+                            <td className="p-3 font-semibold text-slate-900">
+                              {previewReceipt.receiptType === 'Transport' 
+                                ? `รับชำระค่าดำเนินการขนส่งตู้สินค้าคอนเทนเนอร์`
+                                : `รับชำระเงินสำรองจ่ายทดรองล่วงหน้า (Advance Statement)`}
+                              <div className="text-[10px] text-slate-500 font-normal font-mono mt-1">
+                                อ้างอิงใบแจ้งหนี้เลขที่ document ref: {previewReceipt.invoiceNo}
+                              </div>
+                            </td>
+                            <td className="p-3 text-center font-mono">{noOfTrans}</td>
+                            <td className="p-3 text-right font-mono font-bold text-[12px]">{formatCurrency(subtotal)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
 
-            {/* Signatures and stamp indicator */}
-            <div className="grid grid-cols-2 gap-12 pt-16 text-center text-[10px]">
-              <div className="space-y-12">
-                <div className="border-b border-slate-450 h-1 flex items-end justify-center"></div>
-                <div>
-                  <p className="font-bold">น.ส. สมศรี รักงาน</p>
-                  <p className="text-slate-400">เจ้าหน้าที่รับชำระเงินคลังบัญชี (Cashier)</p>
-                </div>
-              </div>
-              <div className="space-y-12 relative flex flex-col items-center">
-                {/* Stamp visual decoration */}
-                <div className="absolute right-12 -top-8 w-16 h-16 rounded-full border-4 border-emerald-500/30 flex items-center justify-center rotate-12 font-black text-emerald-500/40 text-[9px] uppercase tracking-tighter text-center">
-                  PAID<br/>KHEMTHIT
-                </div>
-                <div className="border-b border-slate-450 w-full h-1 flex items-end justify-center"></div>
-                <div>
-                  <p className="font-bold text-slate-850">ประทับตราอนุมัติจ่ายอย่างเป็นทางการ</p>
-                  <p className="text-slate-450">ผู้ว่าจ้างอนุมัติปิดสัญญาการวิ่งเที่ยว (Authorized Sign)</p>
-                </div>
-              </div>
-            </div>
+                    {/* Total display with dotted pattern and Computations */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-350 mt-4">
+                      <div className="md:col-span-2 flex items-center">
+                        <div className="w-full border-2 border-dotted border-slate-400 p-4 rounded bg-slate-50 flex items-center justify-center min-h-[50px] relative">
+                          <span className="text-[10px] text-slate-400 font-bold absolute top-1 left-2 uppercase tracking-wide">ยอดรวมรับเงินตัวอักษรไทย (Thai Baht Word)</span>
+                          <span className="text-xs font-semibold text-slate-800 text-center font-serif">
+                            -- {totalText} --
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-[11px] border bg-slate-50/30 p-4 rounded-lg border-slate-200 font-mono">
+                        <div className="flex justify-between text-slate-500">
+                          <span>รวมเงิน / Total</span>
+                          <span className="font-bold">{formatCurrency(subtotal)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-500 border-b border-slate-150 pb-1">
+                          <span>ภาษีมูลค่าเพิ่ม / Vat 7%</span>
+                          <span className="font-bold">{formatCurrency(vatAmount)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-800 font-bold pt-1">
+                          <span>รวมทั้งสิ้น / Total Amount</span>
+                          <span>{formatCurrency(subtotal + vatAmount)}</span>
+                        </div>
+                        <div className="flex justify-between text-red-600 font-semibold">
+                          <span>ภาษีหัก ณ ที่จ่าย 1%</span>
+                          <span>{formatCurrency(withholdingTax)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-2 border-t border-slate-200 font-mono">
+                          <span>ยอดชำระ / Total Net</span>
+                          <span className="text-slate-910 text-sm font-bold">{formatCurrency(grandTotal)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Signatures and stamp indicator */}
+                    <div className="grid grid-cols-2 gap-12 pt-16 text-center text-[11px] relative">
+                      <div className="space-y-12">
+                        <div className="h-10"></div>
+                        <div className="space-y-2">
+                          <p className="font-bold flex justify-center gap-2">
+                            <span>....................................................................</span>
+                          </p>
+                          <p className="font-bold text-slate-800">ผู้รับเงิน</p>
+                          <p className="text-slate-500 flex justify-center gap-1">
+                            <span>วันที่</span>
+                            <span>.............................../................../..................</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-12 relative flex flex-col items-center">
+                        {/* Stamp visual decoration PAID KHEMTHIT in deep emerald style */}
+                        <div className="absolute right-1/4 -top-8 w-24 h-24 rounded-full border-4 border-emerald-500/30 border-double p-0.5 flex flex-col items-center justify-center opacity-45 select-none pointer-events-none rotate-12 text-emerald-600">
+                          <div className="text-[7px] font-black tracking-widest leading-none text-center">PAID</div>
+                          <svg viewBox="0 0 100 100" className="w-8 h-8 text-emerald-500 my-0.5">
+                            <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="2" />
+                            <path d="M35,50 L45,60 L65,40" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <div className="text-[7px] font-black leading-none text-center">KHEMTHIT<br/>TRANSPORT</div>
+                        </div>
+
+                        <div className="h-10"></div>
+                        
+                        <div className="space-y-2 w-full">
+                          <p className="font-bold text-slate-800 leading-relaxed block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</p>
+                          <p className="font-bold flex justify-center gap-2">
+                            <span>....................................................................</span>
+                          </p>
+                          <p className="font-bold text-slate-800 font-sans">ผู้รับมอบอำนาจ</p>
+                          <p className="text-slate-500 flex justify-center gap-1">
+                            <span>วันที่</span>
+                            <span>.............................../................../..................</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()
+            }
           </div>
         </div>
       )}

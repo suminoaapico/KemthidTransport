@@ -43,6 +43,7 @@ export function RegistryView({
   const [custLine, setCustLine] = useState('');
   const [custCredit, setCustCredit] = useState(30);
   const [custAddress, setCustAddress] = useState('');
+  const [custTaxId, setCustTaxId] = useState('');
 
   // Driver Field states
   const [drvName, setDrvName] = useState('');
@@ -80,6 +81,7 @@ export function RegistryView({
     setCustLine('');
     setCustCredit(30);
     setCustAddress('');
+    setCustTaxId('');
 
     // reset driver
     setDrvName('');
@@ -122,6 +124,7 @@ export function RegistryView({
     setCustLine(c.line);
     setCustCredit(c.creditTerm);
     setCustAddress(c.address);
+    setCustTaxId(c.taxId || '');
     setIsModalOpen(true);
   };
 
@@ -171,7 +174,7 @@ export function RegistryView({
       const id = isEdit ? editId : `CUST-${String(customers.length + 1).padStart(3, '0')}`;
       onSaveCustomer({
         id, name: custName, company: custCompany, phone: custPhone,
-        line: custLine, creditTerm: custCredit, address: custAddress
+        line: custLine, creditTerm: custCredit, address: custAddress, taxId: custTaxId
       });
     } else if (activeRegTab === 'drivers') {
       const id = isEdit ? editId : `DRV-${String(drivers.length + 1).padStart(3, '0')}`;
@@ -263,6 +266,7 @@ export function RegistryView({
                   <th className="p-3 border-r border-slate-150 font-semibold">CustomerID</th>
                   <th className="p-3 border-r border-slate-150 font-semibold">ชื่อลูกค้าเรียกเก็บบัญชี</th>
                   <th className="p-3 border-r border-slate-150 font-semibold">บริษัทจดทะเบียน</th>
+                  <th className="p-3 border-r border-slate-150 font-semibold">เลขผู้เสียภาษี</th>
                   <th className="p-3 border-r border-slate-150 font-semibold">เบอร์โทรศัพท์</th>
                   <th className="p-3 border-r border-slate-150 font-semibold">LINE ID</th>
                   <th className="p-3 border-r border-slate-150 font-semibold text-center">เครดิตระยะ (วัน)</th>
@@ -272,17 +276,18 @@ export function RegistryView({
               </thead>
               <tbody className="divide-y divide-slate-150 text-slate-700">
                 {customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.company.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
-                  <tr><td colSpan={8} className="p-6 text-center text-slate-400 font-mono">ไม่พบข้อมูลลูกค้า</td></tr>
+                  <tr><td colSpan={9} className="p-6 text-center text-slate-400 font-mono">ไม่พบข้อมูลลูกค้า</td></tr>
                 ) : (
                   customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.company.toLowerCase().includes(searchTerm.toLowerCase())).map((c) => (
                     <tr key={c.id} className="hover:bg-slate-50/70 transition-colors odd:bg-white even:bg-slate-50/45">
                       <td className="p-3 border-r border-slate-150 font-mono font-bold">{c.id}</td>
                       <td className="p-3 border-r border-slate-150 font-bold text-slate-900">{c.name}</td>
                       <td className="p-3 border-r border-slate-150">{c.company}</td>
+                      <td className="p-3 border-r border-slate-150 font-mono font-semibold text-slate-600">{c.taxId || '-'}</td>
                       <td className="p-3 border-r border-slate-150 font-mono">{c.phone}</td>
                       <td className="p-3 border-r border-slate-150 font-mono text-indigo-600">@{c.line}</td>
                       <td className="p-3 border-r border-slate-150 text-center font-bold font-mono">{c.creditTerm} วัน</td>
-                      <td className="p-3 border-r border-slate-150 truncate max-w-[200px]" title={c.address}>{c.address}</td>
+                      <td className="p-3 border-r border-slate-150 truncate max-w-[180px]" title={c.address}>{c.address}</td>
                       <td className="p-3 text-center">
                         <div className="flex justify-center gap-1">
                           <button onClick={() => handleEditCustomer(c)} className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-1.5 rounded-lg border border-slate-200"><Edit2 className="w-3.5 h-3.5" /></button>
@@ -469,6 +474,10 @@ export function RegistryView({
                       <label className="text-xs font-bold text-slate-700 block">เครดิตระยะการชำระเงิน (วัน)</label>
                       <input type="number" min="0" value={custCredit || ''} onChange={(e) => setCustCredit(parseInt(e.target.value) || 0)} className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none font-mono" required />
                     </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">เลขประจำตัวผู้เสียภาษี (Tax ID)</label>
+                    <input type="text" value={custTaxId} onChange={(e) => setCustTaxId(e.target.value)} placeholder="ระบุเลขประจำตัวผู้เสียภาษี 13 หลัก (เช่น 01055xxxxxxxx)" className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none font-mono" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-700 block">ที่อยู่จดทะเบียนออกใบแจ้งหนี้ (Address)</label>

@@ -721,16 +721,34 @@ export function FinanceView({
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrintSlip}
-                className="bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs py-2 px-4 rounded flex items-center gap-1 border border-slate-205 transition-colors"
+                className="bg-indigo-600 hover:bg-indigo-505 text-white font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
               >
-                สั่งพิมพ์ (Print)
+                <Printer className="w-3.5 h-3.5" /> สั่งพิมพ์ (Print)
+              </button>
+              <button
+                onClick={handlePrintSlip}
+                className="bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 border border-slate-200 transition-colors cursor-pointer shadow-sm"
+              >
+                <FileText className="w-3.5 h-3.5 text-red-500" /> บันทึก/ส่งออก PDF (Export PDF)
               </button>
               <button
                 onClick={() => setPreviewPayrollSlip(null)}
-                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs py-2 px-4 rounded transition-colors"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors border border-slate-705 cursor-pointer"
               >
-                ปิดหน้าต่าง (Close)
+                ย้อนกลับ (Close)
               </button>
+            </div>
+          </div>
+
+          {/* PDF/Print Guidelines Alert Banner */}
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-xs flex items-start gap-2.5 max-w-2xl mx-auto no-print shadow-sm">
+            <span className="text-base shrink-0 leading-none">💡</span>
+            <div className="space-y-1">
+              <div className="font-bold text-amber-950">คำแนะนำการพิมพ์และการดาวน์โหลดเอกสาร PDF จากเบราว์เซอร์:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-amber-900 leading-relaxed font-sans">
+                <li>เมื่อหน้าต่างพิมพ์ปรากฏขึ้น ให้เลือกเปลี่ยน <strong>"ปลายทาง" (Destination)</strong> เป็น <strong>"บันทึกเป็น PDF" (Save as PDF)</strong> สำหรับส่งออกไฟล์</li>
+                <li>ภายใต้หัวข้อการตั้งค่าเพิ่มเติม ตรวจสอบให้แน่ใจว่าได้คลิกทำเครื่องหมายที่ <strong>"กราฟิกพื้นหลัง" (Background graphics)</strong> เพื่อแสดงสี พื้นหลัง และเส้นขอบตารางที่สมบูรณ์</li>
+              </ul>
             </div>
           </div>
 
@@ -738,6 +756,10 @@ export function FinanceView({
             <style>
               {`
                 @media print {
+                  body {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
                   body * {
                     visibility: hidden;
                   }
@@ -753,6 +775,8 @@ export function FinanceView({
                     box-shadow: none;
                     padding: 0;
                     margin: 0;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
                   }
                   .no-print {
                     display: none !important;

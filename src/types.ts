@@ -6,6 +6,7 @@ export interface Customer {
   line: string;
   creditTerm: number; // Days
   address: string;
+  taxId?: string;
 }
 
 export interface Driver {
@@ -44,6 +45,8 @@ export interface ContainerDetail {
   portCharge: number;
   containerHandling: number;
   liftOnOff: number;
+  otherExpenseName?: string;
+  otherExpenseAmount?: number;
 }
 
 export interface AdvanceItem {
