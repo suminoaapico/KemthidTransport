@@ -120,6 +120,13 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
       updated[index][field] = value;
     } else {
       updated[index][field] = parseFloat(value) || 0;
+      
+      if (field === 'overtimeQty' || field === 'overtimeRate') {
+        const qty = updated[index].overtimeQty || 0;
+        const rate = updated[index].overtimeRate || 0;
+        updated[index].otherExpenseAmount = Math.round(qty * rate * 100) / 100;
+        updated[index].otherExpenseName = 'Overtime';
+      }
     }
     setContainers(updated);
   };
@@ -599,7 +606,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                         <Trash2 className="w-4 h-4" />
                       </button>
 
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 max-w-[94%]">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-[94%]">
                         <div className="space-y-1">
                           <label className="text-[11px] font-bold text-slate-600 block">หมายเลขตู้คอนเทนเนอร์</label>
                           <input
@@ -623,64 +630,59 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                             required
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-600 block">ค่าภาระท่าเรือ (Port Charge)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={c.portCharge || ''}
-                            onChange={(e) => updateContainerField(idx, 'portCharge', e.target.value)}
-                            className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none text-right"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-600 block">ค่ายกจัดยกย้าย (Container Handling)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={c.containerHandling || ''}
-                            onChange={(e) => updateContainerField(idx, 'containerHandling', e.target.value)}
-                            className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none text-right"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-600 block">ค่ายกตู้ขึ้น/ลง (Lift on/off)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={c.liftOnOff || ''}
-                            onChange={(e) => updateContainerField(idx, 'liftOnOff', e.target.value)}
-                            className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none text-right"
-                          />
-                        </div>
                       </div>
 
-                      {/* รายการค่าใช้จ่ายอื่น ๆ และจำนวนเงิน */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-[94%] border-t border-slate-200/60 pt-3 mt-1.5">
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-700 block">รายการค่าใช้จ่ายอื่น ๆ (Other Expense Name)</label>
-                          <input
-                            type="text"
-                            placeholder="เช่น ค่าล่วงเวลาตู้นอกเวลาทำงานปกติ หรืออื่น ๆ"
-                            value={c.otherExpenseName || ''}
-                            onChange={(e) => updateContainerField(idx, 'otherExpenseName', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none placeholder-slate-400"
-                          />
+                      {/* Overtime (Locked Other Expense) - Orange Highlighted Area */}
+                      <div className="border border-orange-300 bg-orange-50/40 p-3.5 rounded-xl space-y-2 max-w-[94%]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-black text-orange-850 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                            ค่าบริการล่วงเวลา / อื่นๆ (Overtime - ล็อกหักภาษี ณ ที่จ่าย 1% อัตโนมัติ)
+                          </span>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-700 block">จำนวนยอดเงินเพิ่มเติม (Amount)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={c.otherExpenseAmount || ''}
-                            onChange={(e) => updateContainerField(idx, 'otherExpenseAmount', e.target.value)}
-                            className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none text-right font-bold text-indigo-600"
-                          />
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white/70 p-3 rounded-lg border border-orange-100/50">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-600 block">1. จำนวน (QTY)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="เช่น 1"
+                              value={c.overtimeQty || ''}
+                              onChange={(e) => updateContainerField(idx, 'overtimeQty', e.target.value)}
+                              className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded p-2 focus:border-orange-400 outline-none text-right font-bold"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-600 block">2. หน่วยละ (Rate)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="เช่น 200"
+                              value={c.overtimeRate || ''}
+                              onChange={(e) => updateContainerField(idx, 'overtimeRate', e.target.value)}
+                              className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded p-2 focus:border-orange-400 outline-none text-right font-bold"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 block">3. จำนวนสุทธิ</label>
+                            <input
+                              type="text"
+                              readOnly
+                              placeholder="0.00"
+                              value={c.otherExpenseAmount ? (c.otherExpenseAmount).toFixed(2) : '0.00'}
+                              className="w-full text-xs font-mono bg-slate-50 text-orange-950 border border-slate-200 rounded p-2 outline-none text-right font-black"
+                            />
+                          </div>
+                          <div className="space-y-1 flex flex-col justify-end">
+                            <div className="text-right p-1.5 px-3 bg-red-50 rounded border border-red-100/80 text-[10px] text-red-900 font-mono font-bold leading-tight flex flex-col justify-center h-9">
+                              <div>หัก ณ ที่จ่าย 1%</div>
+                              <div className="text-[11px] font-extrabold text-red-650">
+                                -{c.otherExpenseAmount ? (c.otherExpenseAmount * 0.01).toFixed(2) : '0.00'} บ.
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
 

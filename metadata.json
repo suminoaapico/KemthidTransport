@@ -1,6 +1,6 @@
 {
   "name": "Khemthit Transport Management",
-  "description": "ระบบบริหารงานขนส่งและออกใบเสร็จ/ใบแจ้งหนี้แบบแยกตู้คอนเทนเนอร์และเงินทดรองจ่าย สำหรับ บริษัท เข็มทิศ ทานสปอร์ต จำกัด เชื่อมต่อ Google Sheets",
+  "description": "ระบบบริหารงานขนส่งและออกใบเสร็จ/ใบแจ้งหนี้แบบแยกตู้คอนเทนเนอร์และเงินทดรองจ่าย สำหรับ บริษัท เข็มทิศ ทานสปอร์ต จำกัด",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

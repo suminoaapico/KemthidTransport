@@ -470,7 +470,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
                             <label className="text-[10px] font-bold text-slate-600 block mb-0.5">ตู้คอนเทนเนอร์ No</label>
                             <input 
@@ -500,76 +500,75 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                               required
                             />
                           </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Port Charge</label>
-                            <input 
-                              type="number" 
-                              value={c.portCharge || ''}
-                              onChange={(e) => {
-                                const list = [...containers];
-                                list[idx].portCharge = parseFloat(e.target.value) || 0;
-                                setContainers(list);
-                              }}
-                              className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Handling Fee</label>
-                            <input 
-                              type="number" 
-                              value={c.containerHandling || ''}
-                              onChange={(e) => {
-                                const list = [...containers];
-                                list[idx].containerHandling = parseFloat(e.target.value) || 0;
-                                setContainers(list);
-                              }}
-                              className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Lift On/Off</label>
-                            <input 
-                              type="number" 
-                              value={c.liftOnOff || ''}
-                              onChange={(e) => {
-                                const list = [...containers];
-                                list[idx].liftOnOff = parseFloat(e.target.value) || 0;
-                                setContainers(list);
-                              }}
-                              className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right"
-                            />
-                          </div>
                         </div>
 
-                        {/* รายการค่าใช้จ่ายอื่น ๆ และจำนวนเงินเพิ่มเติม */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-slate-200/60 pt-3 mt-1.5">
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-700 block mb-0.5">รายการค่าใช้จ่ายอื่น ๆ (Other Expense Name)</label>
-                            <input 
-                              type="text" 
-                              value={c.otherExpenseName || ''}
-                              onChange={(e) => {
-                                const list = [...containers];
-                                list[idx].otherExpenseName = e.target.value;
-                                setContainers(list);
-                              }}
-                              placeholder="ระบุชื่อรายการ เช่น ค่าล่วงเวลา หรืออื่น ๆ"
-                              className="bg-white w-full text-xs border border-slate-200 rounded p-2 outline-none placeholder-slate-400"
-                            />
+                        {/* Overtime (Locked Other Expense) - Orange Highlighted Area */}
+                        <div className="border border-orange-300 bg-orange-50/40 p-3.5 rounded-xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black text-orange-850 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                              ค่าบริการล่วงเวลา / อื่นๆ (Overtime - ล็อกหักภาษี ณ ที่จ่าย 1% อัตโนมัติ)
+                            </span>
                           </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-700 block mb-0.5">จำนวนยอดเงินเพิ่มเติม (Amount)</label>
-                            <input 
-                              type="number" 
-                              value={c.otherExpenseAmount || ''}
-                              onChange={(e) => {
-                                const list = [...containers];
-                                list[idx].otherExpenseAmount = parseFloat(e.target.value) || 0;
-                                setContainers(list);
-                              }}
-                              placeholder="0.00"
-                              className="bg-white w-full text-xs font-mono border border-slate-200 rounded p-2 outline-none text-right font-bold text-indigo-600"
-                            />
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white/70 p-3 rounded-lg border border-orange-100/50">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-600 block">1. จำนวน (QTY)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="เช่น 1"
+                                value={c.overtimeQty || ''}
+                                onChange={(e) => {
+                                  const list = [...containers];
+                                  const qty = parseFloat(e.target.value) || 0;
+                                  list[idx].overtimeQty = qty;
+                                  const rate = list[idx].overtimeRate || 0;
+                                  list[idx].otherExpenseAmount = Math.round(qty * rate * 100) / 100;
+                                  list[idx].otherExpenseName = 'Overtime';
+                                  setContainers(list);
+                                }}
+                                className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded p-2 focus:border-orange-400 outline-none text-right font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-600 block">2. หน่วยละ (Rate)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="เช่น 200"
+                                value={c.overtimeRate || ''}
+                                onChange={(e) => {
+                                  const list = [...containers];
+                                  const rate = parseFloat(e.target.value) || 0;
+                                  list[idx].overtimeRate = rate;
+                                  const qty = list[idx].overtimeQty || 0;
+                                  list[idx].otherExpenseAmount = Math.round(qty * rate * 100) / 100;
+                                  list[idx].otherExpenseName = 'Overtime';
+                                  setContainers(list);
+                                }}
+                                className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded p-2 focus:border-orange-400 outline-none text-right font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-705 block">3. จำนวนสุทธิ</label>
+                              <input
+                                type="text"
+                                readOnly
+                                placeholder="0.00"
+                                value={c.otherExpenseAmount ? (c.otherExpenseAmount).toFixed(2) : '0.00'}
+                                className="w-full text-xs font-mono bg-slate-50 text-orange-950 border border-slate-200 rounded p-2 outline-none text-right font-black"
+                              />
+                            </div>
+                            <div className="space-y-1 flex flex-col justify-end">
+                              <div className="text-right p-1.5 px-3 bg-red-50 rounded border border-red-100/80 text-[10px] text-red-900 font-mono font-bold leading-tight flex flex-col justify-center h-9">
+                                <div>หัก ณ ที่จ่าย 1%</div>
+                                <div className="text-[11px] font-extrabold text-red-650">
+                                  -{c.otherExpenseAmount ? (c.otherExpenseAmount * 0.01).toFixed(2) : '0.00'} บ.
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -721,19 +720,19 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrint}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm font-sans"
               >
                 <Printer className="w-3.5 h-3.5" /> สั่งพิมพ์ (Print)
               </button>
               <button
                 onClick={handlePrint}
-                className="bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 border border-slate-200 transition-colors cursor-pointer shadow-sm"
+                className="bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 border border-slate-200 transition-colors cursor-pointer shadow-sm font-sans"
               >
                 <FileText className="w-3.5 h-3.5 text-red-500" /> บันทึก/ส่งออก PDF (Export PDF)
               </button>
               <button
                 onClick={() => setPreviewInvoice(null)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors border border-slate-700 cursor-pointer"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors border border-slate-700 cursor-pointer font-sans"
               >
                 ย้อนกลับ (Close)
               </button>
@@ -758,9 +757,15 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             <style>
               {`
                 @media print {
+                  @page {
+                    size: A4 portrait;
+                    margin: 1.2cm;
+                  }
                   body {
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
+                    background: white !important;
+                    color: black !important;
                   }
                   body * {
                     visibility: hidden;
@@ -772,11 +777,11 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     position: absolute;
                     left: 0;
                     top: 0;
-                    width: 100%;
-                    border: none;
-                    box-shadow: none;
-                    padding: 0;
-                    margin: 0;
+                    width: 100% !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
                   }
@@ -787,114 +792,51 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
               `}
             </style>
 
-            {/* Corporate Header Section matching align */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-305 pb-6">
-              <div className="flex gap-4 items-start">
-                {/* SVG Compass Logo stamp */}
-                <div className="w-20 h-20 flex items-center justify-center shrink-0">
-                  <svg viewBox="0 0 100 100" className="w-full h-full text-slate-800">
-                    <defs>
-                      <path id="khemthit-logo-top-path" d="M 14 50 A 36 36 0 0 1 86 50" fill="none" />
-                      <path id="khemthit-logo-bottom-path" d="M 14 50 A 36 36 0 0 0 86 50" fill="none" />
-                    </defs>
-                    {/* Ring Borders */}
-                    <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1.2" />
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.6" />
-                    <circle cx="50" cy="50" r="28" fill="none" stroke="currentColor" strokeWidth="0.6" />
-                    <circle cx="50" cy="50" r="25.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-                    
-                    {/* Curved English Text on Top */}
-                    <text className="text-[4.6px] font-black tracking-[0.03em] fill-slate-900" dy="1.4">
-                      <textPath href="#khemthit-logo-top-path" startOffset="50%" textAnchor="middle">
-                        KHEMTHIT TRANSPORT CO., LTD.
-                      </textPath>
-                    </text>
-                    
-                    {/* Curved Thai Text on Bottom */}
-                    <text className="text-[4.5px] font-bold tracking-[0.01em] fill-slate-900" dy="3.4">
-                      <textPath href="#khemthit-logo-bottom-path" startOffset="50%" textAnchor="middle">
-                        บริษัท เข็มทิศ ทรานสปอร์ต จำกัด
-                      </textPath>
-                    </text>
-                    
-                    {/* Inner Compass Rose Group */}
-                    <g className="text-slate-800">
-                      {/* Inner fine circles */}
-                      <circle cx="50" cy="50" r="18" fill="none" stroke="currentColor" strokeWidth="0.4" strokeDasharray="1.5 1" />
-                      <circle cx="50" cy="50" r="11" fill="none" stroke="currentColor" strokeWidth="0.4" />
-                      <circle cx="50" cy="50" r="2.5" fill="currentColor" />
-                      
-                      {/* Secondary points (diagonals) */}
-                      <polygon points="50,50 61.3,38.7 53,42" fill="currentColor" opacity="0.4" />
-                      <polygon points="50,50 61.3,38.7 58,47" fill="currentColor" opacity="0.25" />
-                      
-                      <polygon points="50,50 61.3,61.3 58,53" fill="currentColor" opacity="0.4" />
-                      <polygon points="50,50 61.3,61.3 49,58" fill="currentColor" opacity="0.25" />
-                      
-                      <polygon points="50,50 38.7,61.3 47,58" fill="currentColor" opacity="0.4" />
-                      <polygon points="50,50 38.7,61.3 42,49" fill="currentColor" opacity="0.25" />
-                      
-                      <polygon points="50,50 38.7,38.7 42,47" fill="currentColor" opacity="0.4" />
-                      <polygon points="50,50 38.7,38.7 51,42" fill="currentColor" opacity="0.25" />
-                      
-                      {/* Major points (cardinals) */}
-                      {/* North */}
-                      <polygon points="50,50 50,13.5 47,43.5" fill="currentColor" />
-                      <polygon points="50,50 50,13.5 53,43.5" fill="currentColor" opacity="0.35" />
-                      
-                      {/* East */}
-                      <polygon points="50,50 86.5,50 56.5,47" fill="currentColor" />
-                      <polygon points="50,50 86.5,50 56.5,53" fill="currentColor" opacity="0.35" />
-                      
-                      {/* South */}
-                      <polygon points="50,50 50,86.5 53,56.5" fill="currentColor" />
-                      <polygon points="50,50 50,86.5 47,56.5" fill="currentColor" opacity="0.35" />
-                      
-                      {/* West */}
-                      <polygon points="50,50 13.5,50 43.5,53" fill="currentColor" />
-                      <polygon points="50,50 13.5,50 43.5,47" fill="currentColor" opacity="0.35" />
-                      
-                      {/* Labels N S E W */}
-                      <text x="50" y="21.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">N</text>
-                      <text x="50" y="80.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">S</text>
-                      <text x="78.5" y="51.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">E</text>
-                      <text x="21.5" y="51.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">W</text>
-                    </g>
-                  </svg>
+            {/* Corporate Header Section matching align (using non-stackable flex for absolute print fidelity) */}
+            <div className="flex flex-row justify-between items-center gap-6 border-b border-slate-300 pb-5">
+              <div className="flex gap-4 items-center">
+                {/* Clear High-Definition Brand Logo from Google Drive */}
+                <div className="w-24 h-24 flex items-center justify-center shrink-0">
+                  <img 
+                    src="https://lh3.googleusercontent.com/d/14sHmuOzVEZbKgOZP5p7COS1rfXJvi5w_" 
+                    alt="บริษัท เข็มทิศ ทรานสปอร์ต จำกัด" 
+                    className="w-full h-full object-contain filter drop-shadow-sm"
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
                 <div className="space-y-1">
-                  <h1 className="text-[15px] font-bold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
-                  <p className="text-slate-600 block text-[11px]">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
+                  <h1 className="text-[15px] font-extrabold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
+                  <p className="text-slate-600 block text-[11px] font-medium font-sans">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
                   <div className="text-[11px] text-slate-600 space-y-0.5 block font-mono">
                     <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-800">0205568017041</span></div>
                   </div>
                 </div>
               </div>
 
-              <div className="text-right space-y-3 shrink-0">
+              <div className="text-right space-y-2 shrink-0">
                 <div className="text-right">
-                  <h2 className="text-2xl font-bold tracking-[0.1em] text-slate-900 font-serif leading-none">INVOICE</h2>
-                  <p className="text-[11px] text-slate-700 font-bold mt-1">ใบวางบิล/ใบแจ้งหนี้</p>
+                  <h2 className="text-2xl font-black tracking-[0.1em] text-slate-900 font-serif leading-none">INVOICE</h2>
+                  <p className="text-[11px] text-slate-800 font-bold mt-1 font-sans">ใบวางบิล/ใบแจ้งหนี้</p>
                 </div>
-                <div className="text-[11px] text-slate-600 space-y-1 pt-1 font-mono">
-                  <div className="flex justify-end gap-6">
+                <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 font-mono">
+                  <div className="flex justify-end gap-4">
                     <span className="text-slate-500">เลขที่</span>
-                    <span className="font-bold text-slate-900 w-24 text-left">{previewInvoice.invoiceNo}</span>
+                    <span className="font-extrabold text-slate-900 w-24 text-left">{previewInvoice.invoiceNo}</span>
                   </div>
-                  <div className="flex justify-end gap-6">
+                  <div className="flex justify-end gap-4">
                     <span className="text-slate-500">วันที่</span>
-                    <span className="font-bold text-slate-900 w-24 text-left">{formatInvoiceDate(previewInvoice.date)}</span>
+                    <span className="font-extrabold text-slate-900 w-24 text-left">{formatInvoiceDate(previewInvoice.date)}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Client address details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 border-b border-slate-200">
+            {/* Client address details (Locked 2-column layout to prevent vertical print stacking) */}
+            <div className="grid grid-cols-2 gap-6 py-5 border-b border-slate-200">
               <div className="space-y-1">
                 <span className="text-slate-400 text-[10px] font-bold block uppercase tracking-wider">Customers</span>
                 <span className="text-sm font-bold text-slate-900 block">{previewInvoice.customerName}</span>
-                <p className="text-slate-750 leading-relaxed text-[11px]">
+                <p className="text-slate-700 leading-relaxed text-[11px] font-medium font-sans">
                   ที่อยู่ : {customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี'}
                 </p>
                 <div className="text-slate-600 text-[11px] font-mono space-y-0.5">
@@ -910,7 +852,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             </div>
 
             {/* Invoiced Items Table */}
-            <div className="py-6">
+            <div className="py-4">
               {previewInvoice.invoiceType === 'Transport' ? (
                 <table className="w-full text-left text-[11px] border-collapse">
                   <thead>
@@ -928,7 +870,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                       <tr className="border-b border-slate-200">
                         <td className="p-2 text-center"></td>
                         <td className="p-2 font-mono text-[11px] text-slate-700 bg-slate-50/15" colSpan={4}>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 py-1">
+                          <div className="grid grid-cols-2 gap-x-12 py-1">
                             <div className="flex">
                               <span className="w-24 text-slate-400 font-sans font-bold">Shipper</span>
                               <span className="font-extrabold text-slate-800">{previewInvoice.shipper || '-'}</span>
@@ -945,24 +887,30 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     {previewInvoice.containers.map((c, containerIndex) => {
                       const charges = [];
                       if (c.transportation > 0) {
-                        charges.push({ name: 'Transportation', amount: c.transportation });
+                        charges.push({ name: 'Transportation', amount: c.transportation, qty: 1, rate: c.transportation });
                       }
                       if (c.portCharge > 0) {
-                        charges.push({ name: 'Port Charge', amount: c.portCharge });
+                        charges.push({ name: 'Port Charge', amount: c.portCharge, qty: 1, rate: c.portCharge });
                       }
                       if (c.containerHandling > 0) {
-                        charges.push({ name: 'Container Handling', amount: c.containerHandling });
+                        charges.push({ name: 'Container Handling', amount: c.containerHandling, qty: 1, rate: c.containerHandling });
                       }
                       if (c.liftOnOff > 0) {
-                        charges.push({ name: 'Life on / Life off', amount: c.liftOnOff });
+                        charges.push({ name: 'Life on / Life off', amount: c.liftOnOff, qty: 1, rate: c.liftOnOff });
                       }
                       if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
-                        charges.push({ name: c.otherExpenseName || 'Other Charge / ค่าบริการอื่นๆ', amount: c.otherExpenseAmount });
+                        const isOvertime = c.otherExpenseName === 'Overtime';
+                        charges.push({ 
+                          name: c.otherExpenseName || 'Other Charge / ค่าบริการอื่นๆ', 
+                          amount: c.otherExpenseAmount,
+                          qty: isOvertime ? (c.overtimeQty || 1) : 1,
+                          rate: isOvertime ? (c.overtimeRate || c.otherExpenseAmount) : c.otherExpenseAmount
+                        });
                       }
                       if (c.expenses) {
                         c.expenses.forEach(exp => {
                           if (exp.amount > 0) {
-                            charges.push({ name: exp.name, amount: exp.amount });
+                            charges.push({ name: exp.name, amount: exp.amount, qty: 1, rate: exp.amount });
                           }
                         });
                       }
@@ -985,8 +933,8 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                               <td className="p-1 px-2 pl-8 font-serif italic text-slate-650">
                                 {ch.name}
                               </td>
-                              <td className="p-1 px-2 text-center font-mono text-[10px]">1</td>
-                              <td className="p-1 px-2 text-right font-mono">{formatCurrency(ch.amount)}</td>
+                              <td className="p-1 px-2 text-center font-mono text-[10px]">{ch.qty}</td>
+                              <td className="p-1 px-2 text-right font-mono">{formatCurrency(ch.rate)}</td>
                               <td className="p-1 px-2 text-right font-mono">{formatCurrency(ch.amount)}</td>
                             </tr>
                           ))}
@@ -1012,7 +960,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                       <tr className="border-b border-slate-200">
                         <td className="p-2 text-center"></td>
                         <td className="p-2 font-mono text-[11px] text-slate-700 bg-slate-50/15" colSpan={4}>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 py-1">
+                          <div className="grid grid-cols-2 gap-x-12 py-1">
                             <div className="flex">
                               <span className="w-24 text-slate-400 font-sans font-bold">Shipper</span>
                               <span className="font-extrabold text-slate-800">{previewInvoice.shipper || '-'}</span>
@@ -1040,34 +988,34 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
               )}
             </div>
 
-            {/* Calculations and Thai Baht words inside elegant design dotted borders */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-350 mt-4">
-              <div className="md:col-span-2 flex items-center">
+            {/* Calculations and Thai Baht words inside static grid elements, preventing line wrapping or massive vertical gaps */}
+            <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-300 mt-2">
+              <div className="col-span-2 flex items-center">
                 <div className="w-full border-2 border-dotted border-slate-400 p-4 rounded bg-slate-50 flex items-center justify-center min-h-[50px] relative">
                   <span className="text-[10px] text-slate-400 font-bold absolute top-1 left-2 uppercase tracking-wide">จำนวนยอดเงินตัวอักษรไทย (Thai Baht Text)</span>
-                  <span className="text-xs font-semibold text-slate-800 text-center font-serif">
+                  <span className="text-xs font-semibold text-slate-805 text-center font-serif leading-none">
                     -- {previewInvoice.totalText} --
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-1.5 text-[11px] border bg-slate-50/30 p-4 rounded-lg border-slate-200 font-mono">
+              <div className="space-y-1 text-[11px] border bg-slate-50/30 p-3 rounded-lg border-slate-200 font-mono">
                 <div className="flex justify-between text-slate-500">
                   <span>รวมเงิน / Total</span>
                   <span className="font-bold">{formatCurrency(previewInvoice.subtotal)}</span>
                 </div>
                 {previewInvoice.invoiceType === 'Transport' ? (
-                  <div className="flex justify-between text-red-650 font-semibold border-b border-slate-200 pb-1.5">
+                  <div className="flex justify-between text-red-650 font-semibold border-b border-slate-200 pb-1">
                     <span>ภาษีหัก ณ ที่จ่าย 1%</span>
                     <span>{formatCurrency(previewInvoice.withholdingTax)}</span>
                   </div>
                 ) : (
-                  <div className="flex justify-between text-emerald-655 font-semibold border-b border-slate-200 pb-1.5">
+                  <div className="flex justify-between text-emerald-655 font-semibold border-b border-slate-200 pb-1">
                     <span>ภาษีมูลค่าเพิ่ม / Vat 7%</span>
                     <span>{formatCurrency(previewInvoice.vatAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-2 border-t border-slate-200 font-mono">
+                <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-1.5 border-t border-slate-200 font-mono">
                   <span>ยอดชำระ / Total Net</span>
                   <span className="text-slate-950 text-sm font-bold">{formatCurrency(previewInvoice.grandTotal)}</span>
                 </div>
@@ -1075,10 +1023,10 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             </div>
 
             {/* Signatures Section */}
-            <div className="grid grid-cols-2 gap-12 pt-16 text-center text-[10px] relative">
-              <div className="space-y-12">
-                <div className="h-10"></div>
-                <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-12 pt-12 text-center text-[10px] relative">
+              <div className="space-y-10">
+                <div className="h-6"></div>
+                <div className="space-y-1.5">
                   <p className="font-bold flex justify-center gap-2">
                     <span>....................................................................</span>
                   </p>
@@ -1089,9 +1037,9 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                   </p>
                 </div>
               </div>
-              <div className="space-y-12 relative flex flex-col items-center">
+              <div className="space-y-10 relative flex flex-col items-center">
                 {/* Stamp visual decoration matching KTT seal compass */}
-                <div className="absolute right-1/4 -top-8 w-24 h-24 rounded-full border-4 border-slate-300 border-double p-0.5 flex flex-col items-center justify-center opacity-45 select-none pointer-events-none rotate-6 text-slate-500">
+                <div className="absolute right-1/4 -top-6 w-24 h-24 rounded-full border-4 border-slate-300 border-double p-0.5 flex flex-col items-center justify-center opacity-45 select-none pointer-events-none rotate-6 text-slate-500">
                   <div className="text-[7px] font-black tracking-widest leading-none text-center">KHEMTHIT<br/>TRANSPORT</div>
                   <svg viewBox="0 0 100 100" className="w-8 h-8 text-slate-500 my-0.5">
                     <polygon points="50,15 55,45 50,50" fill="currentColor" />
@@ -1102,9 +1050,9 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                   <div className="text-[7px] font-black leading-none text-center">ผู้วางบิล<br/>APPROVED</div>
                 </div>
 
-                <div className="h-10"></div>
+                <div className="h-6"></div>
                 
-                <div className="space-y-2 w-full">
+                <div className="space-y-1.5 w-full">
                   <p className="font-bold text-slate-800 leading-relaxed block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</p>
                   <p className="font-bold flex justify-center gap-2">
                     <span>....................................................................</span>

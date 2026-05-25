@@ -52,6 +52,8 @@ export interface ContainerDetail {
   liftOnOff: number;
   otherExpenseName?: string;
   otherExpenseAmount?: number;
+  overtimeQty?: number;
+  overtimeRate?: number;
   expenses?: ContainerExpense[];
 }
 

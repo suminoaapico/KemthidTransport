@@ -472,13 +472,19 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
             </div>
           </div>
 
-          <div className="bg-white text-slate-950 p-8 md:p-12 border border-slate-350 shadow-lg rounded-xl max-w-4xl mx-auto font-sans text-xs relative leading-relaxed overflow-x-auto print-view">
+          <div className="bg-white text-slate-900 p-8 md:p-12 border border-slate-350 shadow-lg rounded-xl max-w-4xl mx-auto font-sans text-xs relative leading-relaxed overflow-x-auto print-view">
             <style>
               {`
                 @media print {
+                  @page {
+                    size: A4 portrait;
+                    margin: 1.2cm;
+                  }
                   body {
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
+                    background: white !important;
+                    color: black !important;
                   }
                   body * {
                     visibility: hidden;
@@ -490,11 +496,11 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                     position: absolute;
                     left: 0;
                     top: 0;
-                    width: 100%;
-                    border: none;
-                    box-shadow: none;
-                    padding: 0;
-                    margin: 0;
+                    width: 100% !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
                   }
@@ -539,112 +545,49 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                 return (
                   <>
                     {/* Receipt Header block */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-300 pb-6">
-                      <div className="flex gap-4 items-start">
-                        {/* SVG Stamp logo */}
-                        <div className="w-20 h-20 flex items-center justify-center shrink-0">
-                          <svg viewBox="0 0 100 100" className="w-full h-full text-slate-800">
-                            <defs>
-                              <path id="khemthit-logo-top-path" d="M 14 50 A 36 36 0 0 1 86 50" fill="none" />
-                              <path id="khemthit-logo-bottom-path" d="M 14 50 A 36 36 0 0 0 86 50" fill="none" />
-                            </defs>
-                            {/* Ring Borders */}
-                            <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1.2" />
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.6" />
-                            <circle cx="50" cy="50" r="28" fill="none" stroke="currentColor" strokeWidth="0.6" />
-                            <circle cx="50" cy="50" r="25.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-                            
-                            {/* Curved English Text on Top */}
-                            <text className="text-[4.6px] font-black tracking-[0.03em] fill-slate-900" dy="1.4">
-                              <textPath href="#khemthit-logo-top-path" startOffset="50%" textAnchor="middle">
-                                KHEMTHIT TRANSPORT CO., LTD.
-                              </textPath>
-                            </text>
-                            
-                            {/* Curved Thai Text on Bottom */}
-                            <text className="text-[4.5px] font-bold tracking-[0.01em] fill-slate-900" dy="3.4">
-                              <textPath href="#khemthit-logo-bottom-path" startOffset="50%" textAnchor="middle">
-                                บริษัท เข็มทิศ ทรานสปอร์ต จำกัด
-                              </textPath>
-                            </text>
-                            
-                            {/* Inner Compass Rose Group */}
-                            <g className="text-slate-800">
-                              {/* Inner fine circles */}
-                              <circle cx="50" cy="50" r="18" fill="none" stroke="currentColor" strokeWidth="0.4" strokeDasharray="1.5 1" />
-                              <circle cx="50" cy="50" r="11" fill="none" stroke="currentColor" strokeWidth="0.4" />
-                              <circle cx="50" cy="50" r="2.5" fill="currentColor" />
-                              
-                              {/* Secondary points (diagonals) */}
-                              <polygon points="50,50 61.3,38.7 53,42" fill="currentColor" opacity="0.4" />
-                              <polygon points="50,50 61.3,38.7 58,47" fill="currentColor" opacity="0.25" />
-                              
-                              <polygon points="50,50 61.3,61.3 58,53" fill="currentColor" opacity="0.4" />
-                              <polygon points="50,50 61.3,61.3 49,58" fill="currentColor" opacity="0.25" />
-                              
-                              <polygon points="50,50 38.7,61.3 47,58" fill="currentColor" opacity="0.4" />
-                              <polygon points="50,50 38.7,61.3 42,49" fill="currentColor" opacity="0.25" />
-                              
-                              <polygon points="50,50 38.7,38.7 42,47" fill="currentColor" opacity="0.4" />
-                              <polygon points="50,50 38.7,38.7 51,42" fill="currentColor" opacity="0.25" />
-                              
-                              {/* Major points (cardinals) */}
-                              {/* North */}
-                              <polygon points="50,50 50,13.5 47,43.5" fill="currentColor" />
-                              <polygon points="50,50 50,13.5 53,43.5" fill="currentColor" opacity="0.35" />
-                              
-                              {/* East */}
-                              <polygon points="50,50 86.5,50 56.5,47" fill="currentColor" />
-                              <polygon points="50,50 86.5,50 56.5,53" fill="currentColor" opacity="0.35" />
-                              
-                              {/* South */}
-                              <polygon points="50,50 50,86.5 53,56.5" fill="currentColor" />
-                              <polygon points="50,50 50,86.5 47,56.5" fill="currentColor" opacity="0.35" />
-                              
-                              {/* West */}
-                              <polygon points="50,50 13.5,50 43.5,53" fill="currentColor" />
-                              <polygon points="50,50 13.5,50 43.5,47" fill="currentColor" opacity="0.35" />
-                              
-                              {/* Labels N S E W */}
-                              <text x="50" y="21.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">N</text>
-                              <text x="50" y="80.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">S</text>
-                              <text x="78.5" y="51.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">E</text>
-                              <text x="21.5" y="51.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">W</text>
-                            </g>
-                          </svg>
+                    <div className="flex flex-row justify-between items-center gap-6 border-b border-slate-300 pb-5">
+                      <div className="flex gap-4 items-center">
+                        {/* Clear High-Definition Brand Logo from Google Drive */}
+                        <div className="w-24 h-24 flex items-center justify-center shrink-0">
+                          <img 
+                            src="https://lh3.googleusercontent.com/d/14sHmuOzVEZbKgOZP5p7COS1rfXJvi5w_" 
+                            alt="บริษัท เข็มทิศ ทรานสปอร์ต จำกัด" 
+                            className="w-full h-full object-contain filter drop-shadow-sm"
+                            referrerPolicy="no-referrer"
+                          />
                         </div>
                         <div className="space-y-1">
-                          <h1 className="text-[14px] font-bold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
-                          <p className="text-slate-600 block text-[11px]">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
+                          <h1 className="text-[15px] font-extrabold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
+                          <p className="text-slate-600 block text-[11px] font-medium font-sans">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
                           <div className="text-[11px] text-slate-600 space-y-0.5 block font-mono">
                             <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-800">0205568017041</span></div>
                           </div>
                         </div>
                       </div>
-                      <div className="text-right space-y-3 shrink-0">
+                      <div className="text-right space-y-2 shrink-0">
                         <div className="text-right">
-                          <h2 className="text-lg font-bold tracking-[0.05em] text-slate-900 font-serif leading-none">ใบเสร็จรับเงิน / RECEIPT</h2>
-                          <p className="text-[10px] text-slate-500 font-sans tracking-widest mt-1">ORIGINAL /ต้นฉบับ</p>
+                          <h2 className="text-2xl font-black tracking-[0.05em] text-slate-900 font-serif leading-none">RECEIPT</h2>
+                          <p className="text-[11px] text-slate-800 font-bold mt-1">ใบเสร็จรับเงิน / Receipt</p>
                         </div>
-                        <div className="text-[11px] text-slate-600 space-y-1 pt-1 font-mono">
-                          <div className="flex justify-end gap-6">
+                        <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 font-mono">
+                          <div className="flex justify-end gap-4">
                             <span className="text-slate-500">เลขที่</span>
-                            <span className="font-bold text-slate-900 w-24 text-left">{previewReceipt.receiptNo}</span>
+                            <span className="font-extrabold text-slate-900 w-24 text-left">{previewReceipt.receiptNo}</span>
                           </div>
-                          <div className="flex justify-end gap-6">
+                          <div className="flex justify-end gap-4">
                             <span className="text-slate-500">วันที่</span>
-                            <span className="font-bold text-slate-900 w-24 text-left">{formatReceiptDate(previewReceipt.date)}</span>
+                            <span className="font-extrabold text-slate-900 w-24 text-left">{formatReceiptDate(previewReceipt.date)}</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Client Info block */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 border-b border-slate-200">
+                    {/* Client Info block (Locked 2-column layout to prevent vertical print stacking) */}
+                    <div className="grid grid-cols-2 gap-6 py-5 border-b border-slate-200">
                       <div className="space-y-1">
                         <span className="text-slate-400 text-[10px] font-bold block uppercase tracking-wider">Customers</span>
                         <span className="text-sm font-bold text-slate-900 block">{previewReceipt.customerName}</span>
-                        <p className="text-slate-755 leading-relaxed text-[11px]">
+                        <p className="text-slate-705 leading-relaxed text-[11px] font-medium font-sans">
                           ที่อยู่ : {clientAddress}
                         </p>
                         <div className="text-slate-600 text-[11px] font-mono space-y-0.5">
@@ -659,7 +602,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                     </div>
 
                     {/* Items Table */}
-                    <div className="py-6">
+                    <div className="py-4">
                       <table className="w-full text-left text-[11px] border-collapse">
                         <thead>
                           <tr className="border-b border-t border-slate-400 text-slate-500 font-bold text-[10px] bg-slate-50/50">
@@ -685,18 +628,18 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                       </table>
                     </div>
 
-                    {/* Total display with dotted pattern and Computations */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-350 mt-4">
-                      <div className="md:col-span-2 flex items-center">
+                    {/* Total display with dotted pattern and Computations inside static grid elements */}
+                    <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-300 mt-2">
+                      <div className="col-span-2 flex items-center">
                         <div className="w-full border-2 border-dotted border-slate-400 p-4 rounded bg-slate-50 flex items-center justify-center min-h-[50px] relative">
                           <span className="text-[10px] text-slate-400 font-bold absolute top-1 left-2 uppercase tracking-wide">ยอดรวมรับเงินตัวอักษรไทย (Thai Baht Word)</span>
-                          <span className="text-xs font-semibold text-slate-800 text-center font-serif">
+                          <span className="text-xs font-semibold text-slate-805 text-center font-serif leading-none">
                             -- {totalText} --
                           </span>
                         </div>
                       </div>
 
-                      <div className="space-y-1.5 text-[11px] border bg-slate-50/30 p-4 rounded-lg border-slate-200 font-mono">
+                      <div className="space-y-1 text-[11px] border bg-slate-50/30 p-3 rounded-lg border-slate-200 font-mono">
                         <div className="flex justify-between text-slate-500">
                           <span>รวมเงิน / Total</span>
                           <span className="font-bold">{formatCurrency(subtotal)}</span>
@@ -709,11 +652,11 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                           <span>รวมทั้งสิ้น / Total Amount</span>
                           <span>{formatCurrency(subtotal + vatAmount)}</span>
                         </div>
-                        <div className="flex justify-between text-red-600 font-semibold">
+                        <div className="flex justify-between text-red-650 font-semibold">
                           <span>ภาษีหัก ณ ที่จ่าย 1%</span>
                           <span>{formatCurrency(withholdingTax)}</span>
                         </div>
-                        <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-2 border-t border-slate-200 font-mono">
+                        <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-1.5 border-t border-slate-200 font-mono">
                           <span>ยอดชำระ / Total Net</span>
                           <span className="text-slate-910 text-sm font-bold">{formatCurrency(grandTotal)}</span>
                         </div>
@@ -721,10 +664,10 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                     </div>
 
                     {/* Signatures and stamp indicator */}
-                    <div className="grid grid-cols-2 gap-12 pt-16 text-center text-[11px] relative">
-                      <div className="space-y-12">
-                        <div className="h-10"></div>
-                        <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-12 pt-12 text-center text-[10px] relative">
+                      <div className="space-y-10">
+                        <div className="h-6"></div>
+                        <div className="space-y-1.5">
                           <p className="font-bold flex justify-center gap-2">
                             <span>....................................................................</span>
                           </p>
@@ -735,9 +678,9 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                           </p>
                         </div>
                       </div>
-                      <div className="space-y-12 relative flex flex-col items-center">
+                      <div className="space-y-10 relative flex flex-col items-center">
                         {/* Stamp visual decoration PAID KHEMTHIT in deep emerald style */}
-                        <div className="absolute right-1/4 -top-8 w-24 h-24 rounded-full border-4 border-emerald-500/30 border-double p-0.5 flex flex-col items-center justify-center opacity-45 select-none pointer-events-none rotate-12 text-emerald-600">
+                        <div className="absolute right-1/4 -top-6 w-24 h-24 rounded-full border-4 border-emerald-500/30 border-double p-0.5 flex flex-col items-center justify-center opacity-45 select-none pointer-events-none rotate-12 text-emerald-600">
                           <div className="text-[7px] font-black tracking-widest leading-none text-center">PAID</div>
                           <svg viewBox="0 0 100 100" className="w-8 h-8 text-emerald-500 my-0.5">
                             <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -746,9 +689,9 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                           <div className="text-[7px] font-black leading-none text-center">KHEMTHIT<br/>TRANSPORT</div>
                         </div>
 
-                        <div className="h-10"></div>
+                        <div className="h-6"></div>
                         
-                        <div className="space-y-2 w-full">
+                        <div className="space-y-1.5 w-full">
                           <p className="font-bold text-slate-800 leading-relaxed block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</p>
                           <p className="font-bold flex justify-center gap-2">
                             <span>....................................................................</span>
