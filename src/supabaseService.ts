@@ -508,17 +508,22 @@ export async function fetchAllSupabaseData(): Promise<SupabaseDataState> {
       totalAmount: parseFloat(r.total_amount) || 0,
       status: r.status as any || 'รอดำเนินการ'
     })),
-    expenses: (expRes.data || []).map(r => ({
-      id: r.id,
-      date: r.date,
-      type: r.type as any || 'อื่นๆ',
-      description: r.description || '',
-      vehicleLicense: r.vehicle_license || '',
-      driverName: r.driver_name || '',
-      amount: parseFloat(r.amount) || 0,
-      note: r.note || '',
-      billType: r.bill_type as any || 'Normal'
-    })),
+    expenses: (expRes.data || []).map(r => {
+      const idStr = r.id || '';
+      const jobNo = idStr.includes('/') ? idStr.split('/')[0] : '';
+      return {
+        id: idStr,
+        jobNo: jobNo,
+        date: r.date,
+        type: r.type as any || 'อื่นๆ',
+        description: r.description || '',
+        vehicleLicense: r.vehicle_license || '',
+        driverName: r.driver_name || '',
+        amount: parseFloat(r.amount) || 0,
+        note: r.note || '',
+        billType: r.bill_type as any || 'Normal'
+      };
+    }),
     invoices: (invRes.data || []).map(r => ({
       invoiceNo: r.invoice_no,
       date: r.date,
@@ -1180,11 +1185,11 @@ export async function seedSupabaseTablesJS(): Promise<{ success: boolean; messag
 
     // 6. Expenses
     const expensesData = [
-      { id: 'EXP-001', date: '2026-05-21', type: 'น้ำมัน', description: 'เติมน้ำมัน ปตท. แหลมฉบัง', vehicle_license: '70-1234 ชลบุรี', driver_name: 'นาย สมชาย มีทอง', amount: 1500, note: 'เติมเต็มถังสำหรับการวิ่งงานกรุงเทพฯ-ชลบุรี', bill_type: 'Normal' },
-      { id: 'EXP-002', date: '2026-05-21', type: 'ค่าทางด่วน', description: 'ด่านบางปะกง มอเตอร์เวย์', vehicle_license: '70-5678 ชลบุรี', driver_name: 'นาย อภิชาต ขับดี', amount: 120, note: 'งานวิ่งเบียร์แหลมฉบัง', bill_type: 'Adv' },
-      { id: 'EXP-003', date: '2026-05-21', type: 'ค่าซ่อม', description: 'ปะยางล้อซ้ายหัวลาก', vehicle_license: '70-9999 ชลบุรี', driver_name: 'นาย เกียรติศักดิ์ ใจกล้า', amount: 450, note: 'ยางรั่วจากตะปูระหว่างจอดรอ', bill_type: 'Normal' },
-      { id: 'EXP-004', date: '2026-05-21', type: 'ค่าแรง', description: 'เบี้ยเลี้ยงพิเศษ วิ่งงานดึก', vehicle_license: '70-8888 ชลบุรี', driver_name: 'นาย มานพ รักพ่วง', amount: 500, note: 'วิ่งงานเร่งส่งตู้ Cosco', bill_type: 'Normal' },
-      { id: 'EXP-005', date: '2026-05-21', type: 'ค่าอาหาร', description: 'เบี้ยเลี้ยงมื้อกลางวันวิ่งทางไกล', vehicle_license: '70-7777 ชลบุรี', driver_name: 'นาย สุรชัย ใจดี', amount: 150, note: 'งานอมตะ ชลบุรี', bill_type: 'Normal' }
+      { id: 'JOB-20260521-001/EXP-001', date: '2026-05-21', type: 'น้ำมัน', description: 'เติมน้ำมัน ปตท. แหลมฉบัง', vehicle_license: '70-1234 ชลบุรี', driver_name: 'นาย สมชาย มีทอง', amount: 1500, note: 'เติมเต็มถังสำหรับการวิ่งงานกรุงเทพฯ-ชลบุรี', bill_type: 'Normal' },
+      { id: 'JOB-20260521-002/EXP-002', date: '2026-05-21', type: 'ค่าทางด่วน', description: 'ด่านบางปะกง มอเตอร์เวย์', vehicle_license: '70-5678 ชลบุรี', driver_name: 'นาย อภิชาต ขับดี', amount: 120, note: 'งานวิ่งเบียร์แหลมฉบัง', bill_type: 'Adv' },
+      { id: 'JOB-20260521-003/EXP-003', date: '2026-05-21', type: 'ค่าซ่อม', description: 'ปะยางล้อซ้ายหัวลาก', vehicle_license: '70-9999 ชลบุรี', driver_name: 'นาย เกียรติศักดิ์ ใจกล้า', amount: 450, note: 'ยางรั่วจากตะปูระหว่างจอดรอ', bill_type: 'Normal' },
+      { id: 'JOB-20260521-004/EXP-004', date: '2026-05-21', type: 'ค่าแรง', description: 'เบี้ยเลี้ยงพิเศษ วิ่งงานดึก', vehicle_license: '70-8888 ชลบุรี', driver_name: 'นาย มานพ รักพ่วง', amount: 500, note: 'วิ่งงานเร่งส่งตู้ Cosco', bill_type: 'Normal' },
+      { id: 'JOB-20260521-005/EXP-005', date: '2026-05-21', type: 'ค่าอาหาร', description: 'เบี้ยเลี้ยงมื้อกลางวันวิ่งทางไกล', vehicle_license: '70-7777 ชลบุรี', driver_name: 'นาย สุรชัย ใจดี', amount: 150, note: 'งานอมตะ ชลบุรี', bill_type: 'Normal' }
     ];
     await supabase.from('daily_expenses').upsert(expensesData);
 

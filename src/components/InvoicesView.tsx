@@ -119,9 +119,10 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
 
     if (invoiceType === 'Transport') {
       // TRANSPORT: 1% Withholding Tax, NO VAT
-      subtotal = containers.reduce((sum, c) => 
-        sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0
-      );
+      subtotal = containers.reduce((sum, c) => {
+        const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
+        return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
+      }, 0);
       withholdingTax = Math.round(subtotal * 0.01 * 100) / 100;
       vatAmount = 0;
       grandTotal = subtotal - withholdingTax;
@@ -636,7 +637,10 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                   <span className="font-mono text-slate-200">
                     {formatCurrency(
                       invoiceType === 'Transport' 
-                        ? containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0)
+                        ? containers.reduce((sum, c) => {
+                            const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
+                            return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
+                          }, 0)
                         : advanceItems.reduce((sum, item) => sum + item.amount, 0)
                     )}
                   </span>
@@ -646,7 +650,10 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     <span>หักภาษี ณ ที่จ่าย 1% สะสม:</span>
                     <span className="font-mono">
                       -{formatCurrency(
-                        Math.round(containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0) * 0.01 * 100) / 100
+                        Math.round(containers.reduce((sum, c) => {
+                          const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
+                          return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
+                        }, 0) * 0.01 * 100) / 100
                       )}
                     </span>
                   </div>
@@ -665,7 +672,14 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                   <span className="text-emerald-400">
                     {formatCurrency(
                       invoiceType === 'Transport'
-                        ? containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0) - Math.round(containers.reduce((sum, c) => sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0) * 0.01 * 100) / 100
+                        ? (() => {
+                            const sub = containers.reduce((sum, c) => {
+                              const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
+                              return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
+                            }, 0);
+                            const tax = Math.round(sub * 0.01 * 100) / 100;
+                            return sub - tax;
+                          })()
                         : advanceItems.reduce((sum, item) => sum + item.amount, 0) + Math.round(advanceItems.reduce((sum, item) => sum + item.amount, 0) * 0.07 * 100) / 100
                     )}
                   </span>
@@ -777,22 +791,81 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-305 pb-6">
               <div className="flex gap-4 items-start">
                 {/* SVG Compass Logo stamp */}
-                <div className="w-16 h-16 rounded-full border-2 border-slate-300 p-1 flex items-center justify-center shrink-0">
-                  <svg viewBox="0 0 100 100" className="w-full h-full text-slate-400">
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2" />
-                    <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" strokeWidth="1" />
-                    <polygon points="50,15 55,45 50,50" fill="currentColor" />
-                    <polygon points="50,85 45,55 50,50" fill="currentColor" opacity="0.7" />
-                    <polygon points="85,50 55,45 50,50" fill="currentColor" />
-                    <polygon points="15,50 45,55 50,50" fill="currentColor" opacity="0.7" />
-                    <text x="50" y="54" fontSize="10" textAnchor="middle" fontWeight="bold" fill="currentColor">KTT</text>
+                <div className="w-20 h-20 flex items-center justify-center shrink-0">
+                  <svg viewBox="0 0 100 100" className="w-full h-full text-slate-800">
+                    <defs>
+                      <path id="khemthit-logo-top-path" d="M 14 50 A 36 36 0 0 1 86 50" fill="none" />
+                      <path id="khemthit-logo-bottom-path" d="M 14 50 A 36 36 0 0 0 86 50" fill="none" />
+                    </defs>
+                    {/* Ring Borders */}
+                    <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.6" />
+                    <circle cx="50" cy="50" r="28" fill="none" stroke="currentColor" strokeWidth="0.6" />
+                    <circle cx="50" cy="50" r="25.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                    
+                    {/* Curved English Text on Top */}
+                    <text className="text-[4.6px] font-black tracking-[0.03em] fill-slate-900" dy="1.4">
+                      <textPath href="#khemthit-logo-top-path" startOffset="50%" textAnchor="middle">
+                        KHEMTHIT TRANSPORT CO., LTD.
+                      </textPath>
+                    </text>
+                    
+                    {/* Curved Thai Text on Bottom */}
+                    <text className="text-[4.5px] font-bold tracking-[0.01em] fill-slate-900" dy="3.4">
+                      <textPath href="#khemthit-logo-bottom-path" startOffset="50%" textAnchor="middle">
+                        บริษัท เข็มทิศ ทรานสปอร์ต จำกัด
+                      </textPath>
+                    </text>
+                    
+                    {/* Inner Compass Rose Group */}
+                    <g className="text-slate-800">
+                      {/* Inner fine circles */}
+                      <circle cx="50" cy="50" r="18" fill="none" stroke="currentColor" strokeWidth="0.4" strokeDasharray="1.5 1" />
+                      <circle cx="50" cy="50" r="11" fill="none" stroke="currentColor" strokeWidth="0.4" />
+                      <circle cx="50" cy="50" r="2.5" fill="currentColor" />
+                      
+                      {/* Secondary points (diagonals) */}
+                      <polygon points="50,50 61.3,38.7 53,42" fill="currentColor" opacity="0.4" />
+                      <polygon points="50,50 61.3,38.7 58,47" fill="currentColor" opacity="0.25" />
+                      
+                      <polygon points="50,50 61.3,61.3 58,53" fill="currentColor" opacity="0.4" />
+                      <polygon points="50,50 61.3,61.3 49,58" fill="currentColor" opacity="0.25" />
+                      
+                      <polygon points="50,50 38.7,61.3 47,58" fill="currentColor" opacity="0.4" />
+                      <polygon points="50,50 38.7,61.3 42,49" fill="currentColor" opacity="0.25" />
+                      
+                      <polygon points="50,50 38.7,38.7 42,47" fill="currentColor" opacity="0.4" />
+                      <polygon points="50,50 38.7,38.7 51,42" fill="currentColor" opacity="0.25" />
+                      
+                      {/* Major points (cardinals) */}
+                      {/* North */}
+                      <polygon points="50,50 50,13.5 47,43.5" fill="currentColor" />
+                      <polygon points="50,50 50,13.5 53,43.5" fill="currentColor" opacity="0.35" />
+                      
+                      {/* East */}
+                      <polygon points="50,50 86.5,50 56.5,47" fill="currentColor" />
+                      <polygon points="50,50 86.5,50 56.5,53" fill="currentColor" opacity="0.35" />
+                      
+                      {/* South */}
+                      <polygon points="50,50 50,86.5 53,56.5" fill="currentColor" />
+                      <polygon points="50,50 50,86.5 47,56.5" fill="currentColor" opacity="0.35" />
+                      
+                      {/* West */}
+                      <polygon points="50,50 13.5,50 43.5,53" fill="currentColor" />
+                      <polygon points="50,50 13.5,50 43.5,47" fill="currentColor" opacity="0.35" />
+                      
+                      {/* Labels N S E W */}
+                      <text x="50" y="21.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">N</text>
+                      <text x="50" y="80.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">S</text>
+                      <text x="78.5" y="51.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">E</text>
+                      <text x="21.5" y="51.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">W</text>
+                    </g>
                   </svg>
                 </div>
                 <div className="space-y-1">
                   <h1 className="text-[15px] font-bold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
                   <p className="text-slate-600 block text-[11px]">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
                   <div className="text-[11px] text-slate-600 space-y-0.5 block font-mono">
-                    <div>โทรศัพท์ : <span className="font-bold text-slate-800">095-7757467</span></div>
                     <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-800">0205568017041</span></div>
                   </div>
                 </div>
@@ -885,6 +958,13 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                       }
                       if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
                         charges.push({ name: c.otherExpenseName || 'Other Charge / ค่าบริการอื่นๆ', amount: c.otherExpenseAmount });
+                      }
+                      if (c.expenses) {
+                        c.expenses.forEach(exp => {
+                          if (exp.amount > 0) {
+                            charges.push({ name: exp.name, amount: exp.amount });
+                          }
+                        });
                       }
 
                       return (

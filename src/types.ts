@@ -39,6 +39,11 @@ export interface Employee {
   startDate: string;
 }
 
+export interface ContainerExpense {
+  name: string;
+  amount: number;
+}
+
 export interface ContainerDetail {
   containerNo: string;
   transportation: number;
@@ -47,6 +52,7 @@ export interface ContainerDetail {
   liftOnOff: number;
   otherExpenseName?: string;
   otherExpenseAmount?: number;
+  expenses?: ContainerExpense[];
 }
 
 export interface AdvanceItem {
@@ -74,6 +80,7 @@ export interface TransportJob {
 
 export interface DailyExpense {
   id: string;
+  jobNo: string;
   date: string;
   type: 'น้ำมัน' | 'ค่าทางด่วน' | 'ค่าซ่อม' | 'ค่าแรง' | 'ค่าอาหาร' | 'อื่นๆ';
   description: string;

@@ -37,6 +37,8 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [invoiceNo, setInvoiceNo] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<Receipt['paymentMethod']>('โอนเงิน');
+  const [selectedCustomerName, setSelectedCustomerName] = useState('');
+  const [selectedInvoiceNos, setSelectedInvoiceNos] = useState<string[]>([]);
 
   // Filter and Search
   const filteredReceipts = receipts.filter(r => 
@@ -51,6 +53,8 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
     setDate(new Date().toISOString().split('T')[0]);
     setInvoiceNo('');
     setPaymentMethod('โอนเงิน');
+    setSelectedCustomerName('');
+    setSelectedInvoiceNos([]);
   };
 
   const handleOpenAdd = () => {
@@ -60,20 +64,23 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const linkedInvoice = invoices.find(inv => inv.invoiceNo === invoiceNo);
-    if (!linkedInvoice) {
-      alert("กรุณาจับคู่ใบแจ้งหนี้เพื่อรับชำระเงิน");
+    if (selectedInvoiceNos.length === 0) {
+      alert("กรุณาเลือกใบแจ้งหนี้อย่างน้อย 1 รายการเพื่อออกใบเสร็จ");
       return;
     }
+
+    const matchedInvoices = invoices.filter(inv => selectedInvoiceNos.includes(inv.invoiceNo));
+    const totalAmount = matchedInvoices.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
+    const receiptType = matchedInvoices.some(inv => inv.invoiceType === 'Transport') ? 'Transport' : 'Advance';
 
     const newReceipt: Receipt = {
       receiptNo,
       date,
-      invoiceNo,
-      customerName: linkedInvoice.customerName,
-      amount: linkedInvoice.grandTotal, // matching final calculated grand total
+      invoiceNo: selectedInvoiceNos.join(', '),
+      customerName: selectedCustomerName,
+      amount: totalAmount,
       paymentMethod,
-      receiptType: linkedInvoice.invoiceType
+      receiptType
     };
 
     onSaveReceipt(newReceipt);
@@ -148,7 +155,14 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                           {r.date}
                         </td>
                         <td className="p-2 border border-slate-200 font-mono text-slate-600 align-middle">
-                          {r.invoiceNo}
+                          <div className="max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap" title={r.invoiceNo}>
+                            {r.invoiceNo}
+                          </div>
+                          {r.invoiceNo.includes(',') && (
+                            <span className="text-[10px] text-indigo-650 font-bold font-sans block mt-0.5">
+                              ({r.invoiceNo.split(',').length} ใบแจ้งหนี้)
+                            </span>
+                          )}
                         </td>
                         <td className="p-2 border border-slate-200 font-bold text-slate-900 align-middle">
                           {r.customerName}
@@ -185,6 +199,8 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                                 setDate(r.date);
                                 setInvoiceNo(r.invoiceNo);
                                 setPaymentMethod(r.paymentMethod);
+                                setSelectedCustomerName(r.customerName);
+                                setSelectedInvoiceNos(r.invoiceNo.split(',').map(n => n.trim()).filter(Boolean));
                                 setIsFormOpen(true);
                               }}
                               className="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 p-1 rounded-lg transition-colors"
@@ -223,7 +239,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
               <h3 className="text-lg font-bold text-slate-800 font-sans block">
                 {isEditMode ? `แก้ไขรายละเอียดใบเสร็จรับเงินเลขที่: ${receiptNo}` : 'สร้างคำขออนุมัติพิมพ์ใบเสร็จรับเงิน'}
               </h3>
-              <p className="text-slate-400 text-xs text-slate-500">ระบุใบอ้างอิงใบแจ้งหนี้เพื่อดึงฐานราคารวมภาษีรวมสุทธิมาออกสลักประทับจ่าย</p>
+              <p className="text-slate-400 text-xs">ระบุลูกค้าค้างจ่ายและเลือกใบแจ้งหนี้เพื่อออกสลักประทับใจความ (สามารถเลือกได้ทีละหลายรายการ)</p>
             </div>
             <button 
               onClick={() => setIsFormOpen(false)}
@@ -234,7 +250,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700 block">เลขที่ใบเสร็จ No</label>
                 <input 
@@ -257,22 +273,127 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 block">จับคู่เลขอ้างอิงใบแจ้งหนี้ (Invoice Referrer)</label>
+              <label className="text-xs font-bold text-slate-700 block">ลูกค้าผู้ชำระเงิน (Customer)</label>
               <select
-                value={invoiceNo}
-                onChange={(e) => setInvoiceNo(e.target.value)}
-                className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg p-2.5 outline-none focus:border-emerald-400"
+                value={selectedCustomerName}
+                onChange={(e) => {
+                  setSelectedCustomerName(e.target.value);
+                  setSelectedInvoiceNos([]);
+                }}
+                className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg p-2.5 outline-none focus:border-emerald-450"
                 required
                 disabled={isEditMode}
               >
-                <option value="">-- กรุณาเลือกใบวางบิลเพื่อเคลียร์ชำระ --</option>
-                {invoices.map(inv => (
-                  <option key={inv.invoiceNo} value={inv.invoiceNo}>
-                    {inv.invoiceNo} - {inv.customerName} ({inv.invoiceType === 'Transport' ? 'ค่าขนส่ง' : 'เงินทดรอง'}) | ยอดรับ: {formatCurrency(inv.grandTotal)}
-                  </option>
-                ))}
+                <option value="">-- กรุณาเลือกลูกค้าคู่ชำระ --</option>
+                {customers.map(c => {
+                  const name = c.name || c.company;
+                  return (
+                    <option key={c.id} value={name}>
+                      {name}
+                    </option>
+                  );
+                })}
               </select>
             </div>
+
+            {selectedCustomerName && (
+              <div className="space-y-3 border border-slate-200 rounded-lg p-3.5 bg-slate-50/50">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-xs font-bold text-slate-700">เลือกใบแจ้งหนี้เพื่อรับชำระ ({invoices.filter(inv => inv.customerName === selectedCustomerName && (inv.status === 'ยังไม่จ่าย' || selectedInvoiceNos.includes(inv.invoiceNo))).length} รายการพบ)</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const unpaidInvs = invoices.filter(inv => 
+                          inv.customerName === selectedCustomerName && 
+                          (inv.status === 'ยังไม่จ่าย' || selectedInvoiceNos.includes(inv.invoiceNo))
+                        );
+                        setSelectedInvoiceNos(unpaidInvs.map(inv => inv.invoiceNo));
+                      }}
+                      className="text-[10px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded transition-colors"
+                    >
+                      เลือกทั้งหมด (Select All)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedInvoiceNos([])}
+                      className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold px-2 py-1 rounded transition-colors"
+                    >
+                      ล้างทั้งหมด (Clear)
+                    </button>
+                  </div>
+                </div>
+
+                {(() => {
+                  const availableInvs = invoices.filter(inv => 
+                    inv.customerName === selectedCustomerName && 
+                    (inv.status === 'ยังไม่จ่าย' || selectedInvoiceNos.includes(inv.invoiceNo))
+                  );
+
+                  if (availableInvs.length === 0) {
+                    return (
+                      <p className="text-xs text-slate-400 py-4 text-center font-mono">
+                        ไม่มีใบแจ้งหนี้ค้างชำระสำหรับลูกค้ารายนี้
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {availableInvs.map(inv => {
+                        const isChecked = selectedInvoiceNos.includes(inv.invoiceNo);
+                        return (
+                          <label 
+                            key={inv.invoiceNo} 
+                            className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                              isChecked 
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-semibold shadow-sm' 
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setSelectedInvoiceNos(prev => prev.filter(no => no !== inv.invoiceNo));
+                                } else {
+                                  setSelectedInvoiceNos(prev => [...prev, inv.invoiceNo]);
+                                }
+                              }}
+                              className="mt-0.5 rounded border-slate-350 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <div className="flex-1 min-w-0 font-mono">
+                              <div className="flex justify-between font-bold text-slate-900 gap-2">
+                                <span className="truncate">{inv.invoiceNo}</span>
+                                <span className="text-indigo-650 shrink-0">{formatCurrency(inv.grandTotal)}</span>
+                              </div>
+                              <div className="flex justify-between text-[10px] text-slate-400 font-normal mt-0.5">
+                                <span>{inv.invoiceType === 'Transport' ? 'ค่าขนส่ง' : 'เงินทดรอง'}</span>
+                                <span>{inv.date}</span>
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {selectedInvoiceNos.length > 0 && (
+                  <div className="bg-emerald-50/50 rounded-lg p-2.5 border border-emerald-200 flex justify-between items-center text-xs">
+                    <span className="font-bold text-emerald-800">เลือกแล้ว {selectedInvoiceNos.length} ใบแจ้งหนี้</span>
+                    <span className="font-mono font-bold text-emerald-900">
+                      รวมสุทธิ: {formatCurrency(
+                        invoices
+                          .filter(inv => selectedInvoiceNos.includes(inv.invoiceNo))
+                          .reduce((sum, inv) => sum + (inv.grandTotal || 0), 0)
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700 block">ช่องทางการรับชำระเงิน</label>
@@ -306,7 +427,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
         </div>
       )}
 
-      {/* Cash receipt elegant visual model preview */}
+{/* Cash receipt elegant visual model preview */}
       {previewReceipt && (
         <div className="space-y-4">
           <div className="flex items-center justify-between bg-slate-900 text-white p-4 rounded-xl shadow-md no-print">
@@ -386,16 +507,29 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
 
             {
               (() => {
-                const linkedInvoice = invoices.find(inv => inv.invoiceNo === previewReceipt.invoiceNo);
-                const subtotal = linkedInvoice?.subtotal || previewReceipt.amount;
-                const vatAmount = linkedInvoice?.vatAmount || 0;
-                const withholdingTax = linkedInvoice?.withholdingTax || 0;
-                const grandTotal = linkedInvoice?.grandTotal || previewReceipt.amount;
-                const totalText = linkedInvoice?.totalText || arabicToThaiBaht(previewReceipt.amount);
+                const linkedInvoiceNos = previewReceipt.invoiceNo.split(',').map(n => n.trim()).filter(Boolean);
+                const matchedInvoices = invoices.filter(inv => linkedInvoiceNos.includes(inv.invoiceNo));
                 
-                const noOfTrans = previewReceipt.receiptType === 'Transport'
-                  ? (linkedInvoice?.containers?.length || 1)
-                  : (linkedInvoice?.advanceItems?.length || 1);
+                const subtotal = matchedInvoices.length > 0
+                  ? matchedInvoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0)
+                  : previewReceipt.amount;
+                
+                const vatAmount = matchedInvoices.length > 0
+                  ? matchedInvoices.reduce((sum, inv) => sum + (inv.vatAmount || 0), 0)
+                  : 0;
+                
+                const withholdingTax = matchedInvoices.length > 0
+                  ? matchedInvoices.reduce((sum, inv) => sum + (inv.withholdingTax || 0), 0)
+                  : 0;
+                
+                const grandTotal = matchedInvoices.length > 0
+                  ? matchedInvoices.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0)
+                  : previewReceipt.amount;
+                
+                const totalText = arabicToThaiBaht(grandTotal);
+                
+                const noOfTrans = matchedInvoices.reduce((sum, inv) => 
+                  sum + (inv.invoiceType === 'Transport' ? (inv.containers?.length || 1) : (inv.advanceItems?.length || 1)), 0);
 
                 const customerObj = customers?.find(c => c.name === previewReceipt.customerName || c.company === previewReceipt.customerName);
                 const clientAddress = customerObj?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี';
@@ -408,22 +542,81 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-300 pb-6">
                       <div className="flex gap-4 items-start">
                         {/* SVG Stamp logo */}
-                        <div className="w-16 h-16 rounded-full border-2 border-slate-300 p-1 flex items-center justify-center shrink-0">
-                          <svg viewBox="0 0 100 100" className="w-full h-full text-slate-400">
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2" />
-                            <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" strokeWidth="1" />
-                            <polygon points="50,15 55,45 50,50" fill="currentColor" />
-                            <polygon points="50,85 45,55 50,50" fill="currentColor" opacity="0.7" />
-                            <polygon points="85,50 55,45 50,50" fill="currentColor" />
-                            <polygon points="15,50 45,55 50,50" fill="currentColor" opacity="0.7" />
-                            <text x="50" y="54" fontSize="10" textAnchor="middle" fontWeight="bold" fill="currentColor">KTT</text>
+                        <div className="w-20 h-20 flex items-center justify-center shrink-0">
+                          <svg viewBox="0 0 100 100" className="w-full h-full text-slate-800">
+                            <defs>
+                              <path id="khemthit-logo-top-path" d="M 14 50 A 36 36 0 0 1 86 50" fill="none" />
+                              <path id="khemthit-logo-bottom-path" d="M 14 50 A 36 36 0 0 0 86 50" fill="none" />
+                            </defs>
+                            {/* Ring Borders */}
+                            <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.6" />
+                            <circle cx="50" cy="50" r="28" fill="none" stroke="currentColor" strokeWidth="0.6" />
+                            <circle cx="50" cy="50" r="25.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                            
+                            {/* Curved English Text on Top */}
+                            <text className="text-[4.6px] font-black tracking-[0.03em] fill-slate-900" dy="1.4">
+                              <textPath href="#khemthit-logo-top-path" startOffset="50%" textAnchor="middle">
+                                KHEMTHIT TRANSPORT CO., LTD.
+                              </textPath>
+                            </text>
+                            
+                            {/* Curved Thai Text on Bottom */}
+                            <text className="text-[4.5px] font-bold tracking-[0.01em] fill-slate-900" dy="3.4">
+                              <textPath href="#khemthit-logo-bottom-path" startOffset="50%" textAnchor="middle">
+                                บริษัท เข็มทิศ ทรานสปอร์ต จำกัด
+                              </textPath>
+                            </text>
+                            
+                            {/* Inner Compass Rose Group */}
+                            <g className="text-slate-800">
+                              {/* Inner fine circles */}
+                              <circle cx="50" cy="50" r="18" fill="none" stroke="currentColor" strokeWidth="0.4" strokeDasharray="1.5 1" />
+                              <circle cx="50" cy="50" r="11" fill="none" stroke="currentColor" strokeWidth="0.4" />
+                              <circle cx="50" cy="50" r="2.5" fill="currentColor" />
+                              
+                              {/* Secondary points (diagonals) */}
+                              <polygon points="50,50 61.3,38.7 53,42" fill="currentColor" opacity="0.4" />
+                              <polygon points="50,50 61.3,38.7 58,47" fill="currentColor" opacity="0.25" />
+                              
+                              <polygon points="50,50 61.3,61.3 58,53" fill="currentColor" opacity="0.4" />
+                              <polygon points="50,50 61.3,61.3 49,58" fill="currentColor" opacity="0.25" />
+                              
+                              <polygon points="50,50 38.7,61.3 47,58" fill="currentColor" opacity="0.4" />
+                              <polygon points="50,50 38.7,61.3 42,49" fill="currentColor" opacity="0.25" />
+                              
+                              <polygon points="50,50 38.7,38.7 42,47" fill="currentColor" opacity="0.4" />
+                              <polygon points="50,50 38.7,38.7 51,42" fill="currentColor" opacity="0.25" />
+                              
+                              {/* Major points (cardinals) */}
+                              {/* North */}
+                              <polygon points="50,50 50,13.5 47,43.5" fill="currentColor" />
+                              <polygon points="50,50 50,13.5 53,43.5" fill="currentColor" opacity="0.35" />
+                              
+                              {/* East */}
+                              <polygon points="50,50 86.5,50 56.5,47" fill="currentColor" />
+                              <polygon points="50,50 86.5,50 56.5,53" fill="currentColor" opacity="0.35" />
+                              
+                              {/* South */}
+                              <polygon points="50,50 50,86.5 53,56.5" fill="currentColor" />
+                              <polygon points="50,50 50,86.5 47,56.5" fill="currentColor" opacity="0.35" />
+                              
+                              {/* West */}
+                              <polygon points="50,50 13.5,50 43.5,53" fill="currentColor" />
+                              <polygon points="50,50 13.5,50 43.5,47" fill="currentColor" opacity="0.35" />
+                              
+                              {/* Labels N S E W */}
+                              <text x="50" y="21.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">N</text>
+                              <text x="50" y="80.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">S</text>
+                              <text x="78.5" y="51.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">E</text>
+                              <text x="21.5" y="51.5" fontSize="4.2" fontWeight="bold" textAnchor="middle" fill="currentColor">W</text>
+                            </g>
                           </svg>
                         </div>
                         <div className="space-y-1">
                           <h1 className="text-[14px] font-bold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
                           <p className="text-slate-600 block text-[11px]">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
                           <div className="text-[11px] text-slate-600 space-y-0.5 block font-mono">
-                            <div>โทรศัพท์ : <span className="font-bold text-slate-800">095-7757467</span></div>
                             <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-800">0205568017041</span></div>
                           </div>
                         </div>
@@ -480,9 +673,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                           <tr className="text-slate-800">
                             <td className="p-3 text-center font-mono text-slate-600">1</td>
                             <td className="p-3 font-semibold text-slate-900">
-                              {previewReceipt.receiptType === 'Transport' 
-                                ? `รับชำระค่าดำเนินการขนส่งตู้สินค้าคอนเทนเนอร์`
-                                : `รับชำระเงินสำรองจ่ายทดรองล่วงหน้า (Advance Statement)`}
+                              ค่าขนส่ง
                               <div className="text-[10px] text-slate-500 font-normal font-mono mt-1">
                                 อ้างอิงใบแจ้งหนี้เลขที่ document ref: {previewReceipt.invoiceNo}
                               </div>

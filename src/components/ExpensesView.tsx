@@ -3,18 +3,19 @@ import {
   Plus, Edit2, Trash2, Search, X, DollarSign, Calendar, 
   Truck, Upload, FileText, Check, Filter, CreditCard, Award, HelpCircle
 } from 'lucide-react';
-import { DailyExpense, Driver, Vehicle } from '../types';
+import { DailyExpense, Driver, Vehicle, TransportJob } from '../types';
 import { formatCurrency, getStatusStyle } from '../utils';
 
 interface ExpensesViewProps {
   expenses: DailyExpense[];
   drivers: Driver[];
   vehicles: Vehicle[];
+  jobs: TransportJob[];
   onSaveExpense: (expense: DailyExpense) => void;
   onDeleteExpense: (expenseId: string) => void;
 }
 
-export function ExpensesView({ expenses, drivers, vehicles, onSaveExpense, onDeleteExpense }: ExpensesViewProps) {
+export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense, onDeleteExpense }: ExpensesViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   // Filter for Advance vs Normal tab
   const [activeBillTab, setActiveBillTab] = useState<'All' | 'Normal' | 'Adv'>('All');
@@ -22,6 +23,7 @@ export function ExpensesView({ expenses, drivers, vehicles, onSaveExpense, onDel
 
   // Form State
   const [id, setId] = useState('');
+  const [selectedJobNo, setSelectedJobNo] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [type, setType] = useState<DailyExpense['type']>('น้ำมัน');
   const [description, setDescription] = useState('');
@@ -68,12 +70,14 @@ export function ExpensesView({ expenses, drivers, vehicles, onSaveExpense, onDel
   });
 
   const resetForm = () => {
-    setId(`EXP-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${String(expenses.length + 1).padStart(3, '0')}`);
+    const firstJob = jobs && jobs.length > 0 ? jobs[0] : null;
+    setSelectedJobNo(firstJob ? firstJob.jobNo : '');
+    setId('');
     setDate(new Date().toISOString().split('T')[0]);
     setType('น้ำมัน');
-    setDescription('');
-    setVehicleLicense(vehicles[0]?.licensePlate || '');
-    setDriverName(drivers[0]?.name || '');
+    setDescription(firstJob ? `วิ่งงานจ๊อบ ${firstJob.jobNo} [${firstJob.origin} ➔ ${firstJob.destination}]` : '');
+    setVehicleLicense(firstJob?.vehicleLicense || vehicles[0]?.licensePlate || '');
+    setDriverName(firstJob?.driverName || drivers[0]?.name || '');
     setAmount(0);
     setNote('');
     setBillType('Normal');
@@ -89,6 +93,7 @@ export function ExpensesView({ expenses, drivers, vehicles, onSaveExpense, onDel
 
   const handleOpenEditModal = (e: DailyExpense) => {
     setId(e.id);
+    setSelectedJobNo(e.jobNo || '');
     setDate(e.date);
     setType(e.type);
     setDescription(e.description);
@@ -101,6 +106,16 @@ export function ExpensesView({ expenses, drivers, vehicles, onSaveExpense, onDel
     setFileUrl('https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=300&q=80');
     setIsEditMode(true);
     setIsModalOpen(true);
+  };
+
+  const handleJobChange = (jobNo: string) => {
+    setSelectedJobNo(jobNo);
+    const foundJob = jobs.find(j => j.jobNo === jobNo);
+    if (foundJob) {
+      if (foundJob.driverName) setDriverName(foundJob.driverName);
+      if (foundJob.vehicleLicense) setVehicleLicense(foundJob.vehicleLicense);
+      setDescription(`วิ่งงานจ๊อบ ${jobNo} [${foundJob.origin} ➔ ${foundJob.destination}]`);
+    }
   };
 
   // Drag-and-drop file upload handlers
@@ -145,8 +160,21 @@ export function ExpensesView({ expenses, drivers, vehicles, onSaveExpense, onDel
       return;
     }
 
+    let finalId = id;
+    if (!finalId) {
+      if (selectedJobNo) {
+        // Generate sequence key for this job
+        const jobExpensesCount = expenses.filter(exp => exp.jobNo === selectedJobNo).length;
+        const seq = String(jobExpensesCount + 1).padStart(3, '0');
+        finalId = `${selectedJobNo}/EXP-${seq}`;
+      } else {
+        finalId = `EXP-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${String(expenses.length + 1).padStart(3, '0')}`;
+      }
+    }
+
     const savedExpense: DailyExpense = {
-      id,
+      id: finalId,
+      jobNo: selectedJobNo,
       date,
       type,
       description,
@@ -261,7 +289,7 @@ export function ExpensesView({ expenses, drivers, vehicles, onSaveExpense, onDel
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 font-mono text-slate-600">
-                <th className="p-3 border-r border-slate-150 font-semibold">รหัสเบิก</th>
+                <th className="p-3 border-r border-slate-150 font-semibold">เลขจ๊อบอ้างอิง (Job Ref)</th>
                 <th className="p-3 border-r border-slate-150 font-semibold text-center">วันที่เบิกเงิน</th>
                 <th className="p-3 border-r border-slate-150 font-semibold text-center">ประเภทบัญชีกลุ่ม</th>
                 <th className="p-3 border-r border-slate-150 font-semibold">ประเภทค่าใช้จ่าย</th>
@@ -283,7 +311,16 @@ export function ExpensesView({ expenses, drivers, vehicles, onSaveExpense, onDel
               ) : (
                 filteredExpenses.map((exp) => (
                   <tr key={exp.id} className="hover:bg-slate-50/70 transition-colors odd:bg-white even:bg-slate-50/45">
-                    <td className="p-3 border-r border-slate-150 font-mono font-bold align-middle">{exp.id}</td>
+                    <td className="p-3 border-r border-slate-150 font-mono font-bold align-middle">
+                      <div className="flex flex-col">
+                        <span className="text-slate-900 font-bold font-mono text-xs">{exp.jobNo || 'ทั่วไป / ไม่มีจ๊อบ'}</span>
+                        {exp.id.includes('/') ? (
+                          <span className="text-[10px] text-slate-400 font-normal">({exp.id.split('/')[1]})</span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-normal">({exp.id})</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="p-3 border-r border-slate-150 font-mono text-center text-slate-500 whitespace-nowrap align-middle">
                       {exp.date}
                     </td>
@@ -373,16 +410,41 @@ export function ExpensesView({ expenses, drivers, vehicles, onSaveExpense, onDel
 
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">เลขที่ใบสำคัญ</label>
-                  <input 
-                    type="text" 
-                    value={id}
-                    className="w-full text-xs bg-slate-100 font-mono text-slate-500 border border-slate-200 rounded-lg p-2.5 outline-none font-semibold"
-                    readOnly
-                  />
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 block">เลขงานวิ่งอ้างอิง (Job No. Reference)</label>
+                  {isEditMode ? (
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={selectedJobNo || 'ทั่วไป / ไม่มีงานวิ่ง'}
+                        className="flex-1 text-xs bg-slate-100 font-mono text-slate-650 border border-slate-200 rounded-lg p-2.5 outline-none font-bold"
+                        readOnly
+                      />
+                      <input 
+                        type="text" 
+                        value={id.includes('/') ? id.split('/')[1] : id}
+                        className="w-1/3 text-xs bg-slate-100 font-mono text-slate-400 border border-slate-200 rounded-lg p-2.5 outline-none text-center font-semibold"
+                        readOnly
+                        title="เลขใบสำคัญการทำเบิก"
+                      />
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedJobNo}
+                      onChange={(e) => handleJobChange(e.target.value)}
+                      className="w-full text-xs text-slate-900 border border-indigo-200 bg-indigo-50/25 font-bold font-mono focus:bg-white focus:border-indigo-500 rounded-lg p-2.5 outline-none"
+                      required
+                    >
+                      <option value="">-- กรุณาเลือกเลขจ๊อบขนส่งอ้างอิง (คู่ค้า / เส้นทาง) --</option>
+                      {jobs.map(j => (
+                        <option key={j.jobNo} value={j.jobNo} className="font-mono text-slate-800">
+                          {j.jobNo} - {j.customerName} ({j.origin} ➔ {j.destination})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 block">วันที่จ่ายเงิน</label>
                   <input 
                     type="date" 

@@ -544,6 +544,7 @@ export default function App() {
             customers={state.customers}
             drivers={state.drivers}
             vehicles={state.vehicles}
+            expenses={state.expenses}
             onSaveJob={(job) => {
               updateStateAndPersist(prev => {
                 const list = [...prev.jobs];
@@ -572,6 +573,7 @@ export default function App() {
             expenses={state.expenses}
             vehicles={state.vehicles}
             drivers={state.drivers}
+            jobs={state.jobs}
             onSaveExpense={(exp) => {
               updateStateAndPersist(prev => {
                 const list = [...prev.expenses];

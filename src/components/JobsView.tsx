@@ -3,7 +3,7 @@ import {
   Plus, Edit2, Trash2, Search, X, Layers, Calendar, 
   MapPin, HelpCircle, Save, CheckCircle
 } from 'lucide-react';
-import { TransportJob, Customer, Driver, Vehicle, ContainerDetail } from '../types';
+import { TransportJob, Customer, Driver, Vehicle, ContainerDetail, DailyExpense } from '../types';
 import { formatCurrency, getStatusStyle } from '../utils';
 
 interface JobsViewProps {
@@ -11,11 +11,25 @@ interface JobsViewProps {
   customers: Customer[];
   drivers: Driver[];
   vehicles: Vehicle[];
+  expenses: DailyExpense[];
   onSaveJob: (job: TransportJob) => void;
   onDeleteJob: (jobNo: string) => void;
 }
 
-export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDeleteJob }: JobsViewProps) {
+const EXPENSE_TYPES = [
+  'Transportation',
+  'Life on / Life off',
+  'Port Charge',
+  'Gate Charge',
+  'Drop',
+  'Overtime',
+  'Container Handling',
+  'ADMISSION FEE',
+  'Shore',
+  'Other'
+];
+
+export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJob, onDeleteJob }: JobsViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -57,7 +71,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
     setDriverName(drivers[0]?.name || '');
     setBookingNo('');
     setShipper('');
-    setContainers([{ containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0 }]);
+    setContainers([{ containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0, expenses: [] }]);
     setStatus('รอดำเนินการ');
     setIsEditMode(false);
   };
@@ -77,7 +91,11 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
     setDriverName(job.driverName);
     setBookingNo(job.bookingNo);
     setShipper(job.shipper);
-    setContainers(job.containers.length > 0 ? [...job.containers] : [{ containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0 }]);
+    setContainers(
+      job.containers.length > 0 
+        ? job.containers.map(c => ({ ...c, expenses: c.expenses || [] }))
+        : [{ containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0, expenses: [] }]
+    );
     setStatus(job.status);
     setIsEditMode(true);
     setIsModalOpen(true);
@@ -87,7 +105,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
   const addContainerRow = () => {
     setContainers([
       ...containers,
-      { containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0 }
+      { containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0, expenses: [] }
     ]);
   };
 
@@ -106,6 +124,39 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
     setContainers(updated);
   };
 
+  const addContainerExpense = (containerIndex: number) => {
+    const updated = [...containers];
+    const container = updated[containerIndex];
+    const expList = container.expenses ? [...container.expenses] : [];
+    expList.push({ name: 'Overtime', amount: 0 });
+    container.expenses = expList;
+    setContainers(updated);
+  };
+
+  const removeContainerExpense = (containerIndex: number, expenseIndex: number) => {
+    const updated = [...containers];
+    const container = updated[containerIndex];
+    if (container.expenses) {
+      container.expenses = container.expenses.filter((_, i) => i !== expenseIndex);
+    }
+    setContainers(updated);
+  };
+
+  const updateContainerExpenseField = (containerIndex: number, expenseIndex: number, field: 'name' | 'amount', value: any) => {
+    const updated = [...containers];
+    const container = updated[containerIndex];
+    if (container.expenses) {
+      const expList = [...container.expenses];
+      if (field === 'name') {
+        expList[expenseIndex].name = value;
+      } else {
+        expList[expenseIndex].amount = parseFloat(value) || 0;
+      }
+      container.expenses = expList;
+    }
+    setContainers(updated);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerId) {
@@ -119,9 +170,10 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
     const selectedVehicle = vehicles.find(v => v.licensePlate === vehicleLicense);
 
     // Calculate total job amount based on sum of all containers
-    const calculatedTotal = containers.reduce((sum, c) => 
-      sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0
-    );
+    const calculatedTotal = containers.reduce((sum, c) => {
+      const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
+      return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
+    }, 0);
 
     const updatedJob: TransportJob = {
       jobNo,
@@ -189,7 +241,9 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
                 <th className="p-3 border-r border-slate-150 font-semibold">หัวลาก & คนขับ</th>
                 <th className="p-3 border-r border-slate-150 font-semibold">เส้นทางวิ่งสินค้า</th>
                 <th className="p-3 border-r border-slate-150 font-semibold text-center text-slate-900">จำนวนตู้</th>
-                <th className="p-3 border-r border-slate-150 font-semibold text-right">ยอดรวมค่าขนส่ง</th>
+                <th className="p-3 border-r border-slate-150 font-semibold text-right">ยอดรับค่าขนส่ง</th>
+                <th className="p-3 border-r border-slate-150 font-semibold text-right text-rose-800">เบิกรายวันสะสม</th>
+                <th className="p-3 border-r border-slate-150 font-semibold text-right text-emerald-800">กำไรขั้นต้น (GP)</th>
                 <th className="p-3 border-r border-slate-150 font-semibold text-center">สถานะ</th>
                 <th className="p-3 text-center">การจัดการ</th>
               </tr>
@@ -197,45 +251,65 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
             <tbody className="divide-y divide-slate-150 text-slate-700">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-6 text-center text-slate-400 font-mono">
+                  <td colSpan={11} className="p-6 text-center text-slate-400 font-mono">
                     ไม่พบตารางแผนการขนส่งในระบบ (ลองกด "+ วางแผนงานวิ่ง")
                   </td>
                 </tr>
               ) : (
-                filteredJobs.map((j) => (
-                  <tr key={j.jobNo} className="hover:bg-slate-50/70 transition-colors odd:bg-white even:bg-slate-50/45">
-                    <td className="p-3 border-r border-slate-150 font-mono font-bold align-middle">{j.jobNo}</td>
-                    <td className="p-3 border-r border-slate-150 font-mono text-center text-slate-500 whitespace-nowrap align-middle">
-                      {j.date}
-                    </td>
-                    <td className="p-3 border-r border-slate-150 align-middle">
-                      <div className="font-bold text-slate-900">{j.customerName}</div>
-                      <div className="text-[10px] text-slate-400 font-mono whitespace-normal leading-tight">
-                        Shipper: {j.shipper || 'N/A'} | Booking: {j.bookingNo || 'N/A'}
-                      </div>
-                    </td>
-                    <td className="p-3 border-r border-slate-150 align-middle">
-                      <div className="font-mono bg-slate-100 rounded px-1.5 py-0.5 inline-block text-slate-700 font-semibold text-[10px] mb-0.5">{j.vehicleLicense}</div>
-                      <div className="text-[11px] text-slate-500">{j.driverName}</div>
-                    </td>
-                    <td className="p-3 border-r border-slate-150 align-middle">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="font-medium text-[11px]">{j.origin}</span>
-                      </div>
-                      <div className="text-slate-400 pl-4 text-[10px]">ไป: {j.destination}</div>
-                    </td>
-                    <td className="p-3 border-r border-slate-150 text-center font-bold font-mono align-middle text-slate-900">
-                      {j.containers.length} ตู้
-                    </td>
-                    <td className="p-3 border-r border-slate-150 text-right font-mono font-extrabold text-slate-900 align-middle whitespace-nowrap">
-                      {formatCurrency(j.totalAmount)}
-                    </td>
-                    <td className="p-3 border-r border-slate-150 text-center align-middle whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusStyle(j.status)}`}>
-                        {j.status}
-                      </span>
-                    </td>
+                filteredJobs.map((j) => {
+                  const jobExpensesList = expenses.filter(e => e.jobNo === j.jobNo);
+                  const totalJobExpenses = jobExpensesList.reduce((sum, e) => sum + e.amount, 0);
+                  const grossProfit = j.totalAmount - totalJobExpenses;
+                  const gpPercent = j.totalAmount > 0 ? (grossProfit / j.totalAmount) * 100 : 0;
+
+                  return (
+                    <tr key={j.jobNo} className="hover:bg-slate-50/70 transition-colors odd:bg-white even:bg-slate-50/45">
+                      <td className="p-3 border-r border-slate-150 font-mono font-bold align-middle">{j.jobNo}</td>
+                      <td className="p-3 border-r border-slate-150 font-mono text-center text-slate-500 whitespace-nowrap align-middle">
+                        {j.date}
+                      </td>
+                      <td className="p-3 border-r border-slate-150 align-middle">
+                        <div className="font-bold text-slate-900">{j.customerName}</div>
+                        <div className="text-[10px] text-slate-400 font-mono whitespace-normal leading-tight">
+                          Shipper: {j.shipper || 'N/A'} | Booking: {j.bookingNo || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="p-3 border-r border-slate-150 align-middle">
+                        <div className="font-mono bg-slate-100 rounded px-1.5 py-0.5 inline-block text-slate-700 font-semibold text-[10px] mb-0.5">{j.vehicleLicense}</div>
+                        <div className="text-[11px] text-slate-500">{j.driverName}</div>
+                      </td>
+                      <td className="p-3 border-r border-slate-150 align-middle">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="font-medium text-[11px]">{j.origin}</span>
+                        </div>
+                        <div className="text-slate-400 pl-4 text-[10px]">ไป: {j.destination}</div>
+                      </td>
+                      <td className="p-3 border-r border-slate-150 text-center font-bold font-mono align-middle text-slate-900">
+                        {j.containers.length} ตู้
+                      </td>
+                      <td className="p-3 border-r border-slate-150 text-right font-mono font-extrabold text-slate-900 align-middle whitespace-nowrap">
+                        {formatCurrency(j.totalAmount)}
+                      </td>
+                      <td className="p-3 border-r border-slate-150 text-right font-mono text-rose-600 font-bold align-middle whitespace-nowrap">
+                        {totalJobExpenses > 0 ? `-${formatCurrency(totalJobExpenses)}` : '0.00'}
+                        {jobExpensesList.length > 0 && (
+                          <span className="block text-[9px] text-slate-400 font-normal font-sans">({jobExpensesList.length} แฟ้มเบิก)</span>
+                        )}
+                      </td>
+                      <td className="p-3 border-r border-slate-150 text-right font-mono font-extrabold align-middle whitespace-nowrap">
+                        <span className={grossProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}>
+                          {formatCurrency(grossProfit)}
+                        </span>
+                        <span className="block text-[9px] text-slate-400 font-normal font-sans">
+                          ({gpPercent.toFixed(1)}% GP)
+                        </span>
+                      </td>
+                      <td className="p-3 border-r border-slate-150 text-center align-middle whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusStyle(j.status)}`}>
+                          {j.status}
+                        </span>
+                      </td>
                     <td className="p-3 text-center align-middle whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
                         <button 
@@ -259,8 +333,9 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })
+            )}
             </tbody>
           </table>
         </div>
@@ -288,6 +363,85 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
 
             {/* Modal Form */}
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+              {isEditMode && (() => {
+                const modalJobExpenses = expenses.filter(e => e.jobNo === jobNo);
+                const totalModalExpenses = modalJobExpenses.reduce((sum, e) => sum + e.amount, 0);
+                const totalRevenueOfJob = containers.reduce((sum, c) => {
+                  const customSum = (c.expenses || []).reduce((s, e) => s + e.amount, 0);
+                  const otherAmt = c.otherExpenseAmount || 0;
+                  return sum + (c.transportation || 0) + (c.portCharge || 0) + (c.containerHandling || 0) + (c.liftOnOff || 0) + otherAmt + customSum;
+                }, 0);
+                const modalGP = totalRevenueOfJob - totalModalExpenses;
+                const modalGPPercent = totalRevenueOfJob > 0 ? (modalGP / totalRevenueOfJob) * 105 / 105 * 100 : 0;
+
+                return (
+                  <div className="bg-slate-900 text-white rounded-xl p-5 border border-slate-800 shadow-md space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Job Costing Ledgers & Profitability Report</h4>
+                        <p className="text-[10px] text-slate-300">รายงานสรุปผลกำไร-ขาดทุนรายวันสะสม Real-Time สำหรับจ๊อบ {jobNo}</p>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${modalGP >= 0 ? 'bg-emerald-950/45 text-emerald-400 border-emerald-800/60' : 'bg-red-950/45 text-red-400 border-red-800/60'}`}>
+                        {modalGP >= 0 ? 'กำไร (PROFITABLE)' : 'ขาดทุน (LOSS)'}
+                      </span>
+                    </div>
+
+                    {/* Costing Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="bg-slate-850 p-3 rounded-lg border border-slate-800">
+                        <span className="text-[10px] text-slate-400 font-bold block mb-1">รายรับรวมทั้งหมด (Revenue)</span>
+                        <span className="text-sm font-extrabold font-mono text-white">{formatCurrency(totalRevenueOfJob)}</span>
+                      </div>
+                      <div className="bg-slate-850 p-3 rounded-lg border border-slate-800">
+                        <span className="text-[10px] text-slate-400 font-bold block mb-1">ค่าใช้จ่ายเบิกรายวันสะสม (Expenses Claim)</span>
+                        <span className="text-sm font-extrabold font-mono text-rose-400">{totalModalExpenses > 0 ? `-${formatCurrency(totalModalExpenses)}` : '0.00'}</span>
+                      </div>
+                      <div className="bg-slate-850 p-3 rounded-lg border border-slate-800 col-span-1">
+                        <span className="text-[10px] text-slate-400 font-bold block mb-1">ส่วนต่างสุทธิ GP (Margin)</span>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className={`text-base font-extrabold font-mono ${modalGP >= 0 ? 'text-emerald-450' : 'text-red-450'}`}>
+                            {formatCurrency(modalGP)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-semibold">({modalGPPercent.toFixed(1)}%)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Breakdown List of Expenses */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-slate-400 font-bold block">รายละเอียดแฟ้มเงินเบิกสะสมของงานวิ่งนี้:</span>
+                      {modalJobExpenses.length === 0 ? (
+                        <div className="text-slate-500 border border-dashed border-slate-800 text-center py-4 rounded-lg font-mono text-[11px]">
+                          ยังไม่มีผู้ขับใดเบิกค่าใช้จ่ายรายวันนี้สำหรับจ๊อบ {jobNo}
+                        </div>
+                      ) : (
+                        <div className="bg-slate-950/50 rounded-lg overflow-hidden border border-slate-805 divide-y divide-slate-850 max-h-40 overflow-y-auto">
+                          {modalJobExpenses.map(exp => (
+                            <div key={exp.id} className="p-2.5 flex items-center justify-between text-[11px] hover:bg-slate-855/30 transition-all">
+                              <div className="flex items-center gap-3">
+                                <span className="font-mono bg-slate-800 font-bold px-1.5 py-0.5 rounded text-slate-300 text-[10px]">
+                                  {exp.id.includes('/') ? exp.id.split('/')[1] : exp.id}
+                                </span>
+                                <div className="space-y-0.5">
+                                  <div className="font-bold flex items-center gap-2">
+                                    <span className="text-white text-[11px]">{exp.type}</span>
+                                    <span className={`text-[9px] font-bold px-1 rounded ${exp.billType === 'Adv' ? 'bg-orange-950/50 text-orange-400 border border-orange-900' : 'bg-sky-950/50 text-sky-400 border border-sky-950'}`}>
+                                      {exp.billType === 'Adv' ? 'ADV' : 'NORMAL'}
+                                    </span>
+                                  </div>
+                                  <div className="text-slate-450 leading-none text-[10px]">{exp.description} | พนักงาน: {exp.driverName} ({exp.vehicleLicense})</div>
+                                </div>
+                              </div>
+                              <span className="font-mono font-bold text-rose-400">-{formatCurrency(exp.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Core Information Section */}
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
@@ -530,6 +684,62 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
                         </div>
                       </div>
 
+                      {/* รายการค่าใช้จ่ายและบริการอื่น ๆ เพิ่มเติม (Dynamic Expenses) */}
+                      <div className="border-t border-slate-200/60 pt-3 mt-1.5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-700 block">รายการค่าใช้จ่ายและบริการอื่น ๆ เพิ่มเติม (Dynamic Expenses)</span>
+                          <button
+                            type="button"
+                            onClick={() => addContainerExpense(idx)}
+                            className="text-[10px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-1 px-2.5 rounded-md border border-indigo-200 transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3" /> เพิ่มรายการค่าใช้จ่าย / บริการอื่น ๆ
+                          </button>
+                        </div>
+
+                        {(!c.expenses || c.expenses.length === 0) ? (
+                          <div className="text-[11px] text-slate-400 font-sans italic bg-slate-50 border border-dashed border-slate-200 p-2 text-center rounded-lg">
+                            ไม่มีรายการค่าใช้จ่ายเพิ่มเติม (กดปุ่ม "+ เพิ่มรายการค่าใช้จ่าย" เพื่อระบุเพิ่มเติม)
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {c.expenses.map((exp, expIdx) => (
+                              <div key={expIdx} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200/80 shadow-xs">
+                                <div className="flex-1">
+                                  <input
+                                    type="text"
+                                    list="expense-preset-options"
+                                    placeholder="ระบุชื่อประเภทบริการ/ค่าใช้จ่าย หรือเลือก..."
+                                    value={exp.name}
+                                    onChange={(e) => updateContainerExpenseField(idx, expIdx, 'name', e.target.value)}
+                                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded p-1.5 outline-none font-semibold text-slate-800 focus:bg-white focus:border-indigo-500 placeholder-slate-400"
+                                  />
+                                </div>
+                                <div className="w-32">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="จำนวนเงิน"
+                                    value={exp.amount || ''}
+                                    onChange={(e) => updateContainerExpenseField(idx, expIdx, 'amount', e.target.value)}
+                                    className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded p-1.5 outline-none text-right font-extrabold text-slate-900"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeContainerExpense(idx, expIdx)}
+                                  className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded transition-colors"
+                                  title="ลบรายการนี้"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                     </div>
                   ))}
                 </div>
@@ -540,9 +750,10 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
                 <span className="text-xs font-semibold text-slate-400">สรุปยอดคำนวณค่าขนส่งรวมทุกตู้สะสม:</span>
                 <span className="text-xl font-bold font-mono text-emerald-400">
                   {formatCurrency(
-                    containers.reduce((sum, c) => 
-                      sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0), 0
-                    )
+                    containers.reduce((sum, c) => {
+                      const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
+                      return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
+                    }, 0)
                   )}
                 </span>
               </div>
@@ -567,6 +778,11 @@ export function JobsView({ jobs, customers, drivers, vehicles, onSaveJob, onDele
           </div>
         </div>
       )}
+      <datalist id="expense-preset-options">
+        {EXPENSE_TYPES.map((type) => (
+          <option key={type} value={type} />
+        ))}
+      </datalist>
     </div>
   );
 }
