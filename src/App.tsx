@@ -875,7 +875,7 @@ export default function App() {
               }));
               handleSupabaseDelete(dbDeleteCustomer, id, 'ลูกค้า (customers)');
             }}
-            onSaveDriver={(drv) => {
+            onSaveDriver={async (drv) => {
               updateStateAndPersist(prev => {
                 const list = [...prev.drivers];
                 const index = list.findIndex(d => d.id === drv.id);
@@ -883,6 +883,15 @@ export default function App() {
                 else list.push(drv);
                 return { ...prev, drivers: list };
               });
+
+              // Ensure the assigned vehicle is saved in Supabase first!
+              if (drv.vehicleLicense) {
+                const matchedVeh = state.vehicles.find(v => v.licensePlate === drv.vehicleLicense);
+                if (matchedVeh) {
+                  await handleSupabaseSave(dbSaveVehicle, matchedVeh, 'ยานพาหนะ (vehicles)');
+                }
+              }
+
               handleSupabaseSave(dbSaveDriver, drv, 'คนขับ (drivers)');
             }}
             onDeleteDriver={(id) => {

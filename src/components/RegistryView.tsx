@@ -510,7 +510,18 @@ export function RegistryView({
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-700 block">มอบหมายรถ ทะเบียนควบคุมประจำเป็นมัด</label>
-                      <input type="text" value={drvVehicle} onChange={(e) => setDrvVehicle(e.target.value)} placeholder="เช่น 70-1234 ชลบุรี" className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none font-mono" required />
+                      <select 
+                        value={drvVehicle} 
+                        onChange={(e) => setDrvVehicle(e.target.value)} 
+                        className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none font-mono"
+                      >
+                        <option value="">-- ไม่มอบหมายรถ / ไม่มี --</option>
+                        {vehicles.map((v) => (
+                          <option key={v.licensePlate} value={v.licensePlate}>
+                            {v.licensePlate} ({v.type})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="space-y-1">

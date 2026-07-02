@@ -636,22 +636,29 @@ export async function pushAllLocalDataToSupabase(state: SupabaseDataState): Prom
   }
 
   // Push Drivers
+  const validCustomers = new Set(state.customers.map((c: any) => c.id));
+  const validVehicles = new Set(state.vehicles.map((v: any) => v.licensePlate));
+  const validInvoices = new Set(state.invoices.map((inv: any) => inv.invoiceNo));
+
   if (state.drivers.length > 0) {
-    const drvData = state.drivers.map(d => ({
-      id: d.id,
-      name: d.name,
-      phone: d.phone,
-      license_no: d.licenseNo,
-      expiry_date: d.expiryDate,
-      vehicle_license: d.vehicleLicense || null,
-      status: d.status
-    }));
+    const drvData = state.drivers.map((d: any) => {
+      const vehExists = d.vehicleLicense && validVehicles.has(d.vehicleLicense);
+      return {
+        id: d.id,
+        name: d.name,
+        phone: d.phone,
+        license_no: d.licenseNo,
+        expiry_date: d.expiryDate,
+        vehicle_license: vehExists ? d.vehicleLicense : null,
+        status: d.status
+      };
+    });
     await supabase.from('drivers').upsert(drvData);
   }
 
   // Push Employees
   if (state.employees.length > 0) {
-    const empData = state.employees.map(e => ({
+    const empData = state.employees.map((e: any) => ({
       id: e.id,
       name: e.name,
       position: e.position,
@@ -665,81 +672,101 @@ export async function pushAllLocalDataToSupabase(state: SupabaseDataState): Prom
 
   // Push Jobs
   if (state.jobs.length > 0) {
-    const jobsData = state.jobs.map(j => ({
-      job_no: j.jobNo,
-      date: j.date,
-      customer_id: j.customerId || null,
-      customer_name: j.customerName,
-      origin: j.origin,
-      destination: j.destination,
-      vehicle_license: j.vehicleLicense || null,
-      driver_name: j.driverName,
-      vehicle_type: j.vehicleType,
-      booking_no: j.bookingNo,
-      shipper: j.shipper,
-      containers: j.containers,
-      total_amount: j.totalAmount,
-      status: j.status
-    }));
+    const jobsData = state.jobs.map((j: any) => {
+      const custExists = j.customerId && validCustomers.has(j.customerId);
+      const vehExists = j.vehicleLicense && validVehicles.has(j.vehicleLicense);
+      return {
+        job_no: j.jobNo,
+        date: j.date,
+        customer_id: custExists ? j.customerId : null,
+        customer_name: j.customerName,
+        origin: j.origin,
+        destination: j.destination,
+        vehicle_license: vehExists ? j.vehicleLicense : null,
+        driver_name: j.driverName,
+        vehicle_type: j.vehicleType,
+        booking_no: j.bookingNo,
+        shipper: j.shipper,
+        containers: j.containers,
+        total_amount: j.totalAmount,
+        status: j.status,
+        job_type: j.jobType || 'Import',
+        quantity: j.quantity || 1,
+        container_size: j.containerSize || '40HC',
+        ship_agent: j.shipAgent || '',
+        pickup_at: j.pickupAt || '',
+        load_at: j.loadAt || '',
+        return_at: j.returnAt || ''
+      };
+    });
     await supabase.from('transport_jobs').upsert(jobsData);
   }
 
   // Push Expenses
   if (state.expenses.length > 0) {
-    const expData = state.expenses.map(e => ({
-      id: e.id,
-      date: e.date,
-      type: e.type,
-      description: e.description,
-      vehicle_license: e.vehicleLicense || null,
-      driver_name: e.driverName,
-      amount: e.amount,
-      note: e.note,
-      bill_type: e.billType
-    }));
+    const expData = state.expenses.map((e: any) => {
+      const vehExists = e.vehicleLicense && validVehicles.has(e.vehicleLicense);
+      return {
+        id: e.id,
+        date: e.date,
+        type: e.type,
+        description: e.description,
+        vehicle_license: vehExists ? e.vehicleLicense : null,
+        driver_name: e.driverName,
+        amount: e.amount,
+        note: e.note,
+        bill_type: e.billType
+      };
+    });
     await supabase.from('daily_expenses').upsert(expData);
   }
 
   // Push Invoices
   if (state.invoices.length > 0) {
-    const invData = state.invoices.map(inv => ({
-      invoice_no: inv.invoiceNo,
-      date: inv.date,
-      customer_id: inv.customerId || null,
-      customer_name: inv.customerName,
-      job_no: inv.jobNo,
-      invoice_type: inv.invoiceType,
-      booking_no: inv.bookingNo,
-      shipper: inv.shipper,
-      containers: inv.containers,
-      advance_items: inv.advanceItems,
-      subtotal: inv.subtotal,
-      withholding_tax: inv.withholdingTax,
-      vat_amount: inv.vatAmount,
-      grand_total: inv.grandTotal,
-      total_text: inv.totalText,
-      status: inv.status
-    }));
+    const invData = state.invoices.map((inv: any) => {
+      const custExists = inv.customerId && validCustomers.has(inv.customerId);
+      return {
+        invoice_no: inv.invoiceNo,
+        date: inv.date,
+        customer_id: custExists ? inv.customerId : null,
+        customer_name: inv.customerName,
+        job_no: inv.jobNo,
+        invoice_type: inv.invoiceType,
+        booking_no: inv.bookingNo,
+        shipper: inv.shipper,
+        containers: inv.containers,
+        advance_items: inv.advanceItems,
+        subtotal: inv.subtotal,
+        withholding_tax: inv.withholdingTax,
+        vat_amount: inv.vatAmount,
+        grand_total: inv.grandTotal,
+        total_text: inv.totalText,
+        status: inv.status
+      };
+    });
     await supabase.from('invoices').upsert(invData);
   }
 
   // Push Receipts
   if (state.receipts.length > 0) {
-    const recData = state.receipts.map(r => ({
-      receipt_no: r.receiptNo,
-      date: r.date,
-      invoice_no: r.invoiceNo || null,
-      customer_name: r.customerName,
-      amount: r.amount,
-      payment_method: r.paymentMethod,
-      receipt_type: r.receiptType
-    }));
+    const recData = state.receipts.map((r: any) => {
+      const invExists = r.invoiceNo && validInvoices.has(r.invoiceNo);
+      return {
+        receipt_no: r.receiptNo,
+        date: r.date,
+        invoice_no: invExists ? r.invoiceNo : null,
+        customer_name: r.customerName,
+        amount: r.amount,
+        payment_method: r.paymentMethod,
+        receipt_type: r.receiptType
+      };
+    });
     await supabase.from('receipts').upsert(recData);
   }
 
   // Push Partner Payments
   if (state.partnerPayments.length > 0) {
-    const partnerData = state.partnerPayments.map(p => ({
+    const partnerData = state.partnerPayments.map((p: any) => ({
       id: p.id,
       date: p.date,
       partner_name: p.partnerName,
@@ -755,7 +782,7 @@ export async function pushAllLocalDataToSupabase(state: SupabaseDataState): Prom
 
   // Push Withholding Taxes
   if (state.withholdingTaxes.length > 0) {
-    const whtData = state.withholdingTaxes.map(w => ({
+    const whtData = state.withholdingTaxes.map((w: any) => ({
       id: w.id,
       date: w.date,
       payee_name: w.payeeName,
@@ -770,7 +797,7 @@ export async function pushAllLocalDataToSupabase(state: SupabaseDataState): Prom
 
   // Push Payroll
   if (state.payroll.length > 0) {
-    const payrollData = state.payroll.map(pr => ({
+    const payrollData = state.payroll.map((pr: any) => ({
       id: pr.id,
       employee_id: pr.employeeId || null,
       employee_name: pr.employeeName,
@@ -813,13 +840,19 @@ export async function dbDeleteCustomer(id: string) {
 
 // 2. Drivers
 export async function dbSaveDriver(drv: Driver) {
+  let vehicleLicense: string | null = drv.vehicleLicense || null;
+  if (vehicleLicense) {
+    const { data } = await supabase.from('vehicles').select('license_plate').eq('license_plate', vehicleLicense);
+    if (!data || data.length === 0) vehicleLicense = null;
+  }
+
   const { error } = await supabase.from('drivers').upsert({
     id: drv.id,
     name: drv.name,
     phone: drv.phone,
     license_no: drv.licenseNo,
     expiry_date: drv.expiryDate,
-    vehicle_license: drv.vehicleLicense || null,
+    vehicle_license: vehicleLicense,
     status: drv.status
   });
   if (error) throw error;
@@ -870,14 +903,26 @@ export async function dbDeleteEmployee(id: string) {
 
 // 5. Jobs
 export async function dbSaveJob(j: TransportJob) {
+  let customerId: string | null = j.customerId || null;
+  if (customerId) {
+    const { data } = await supabase.from('customers').select('id').eq('id', customerId);
+    if (!data || data.length === 0) customerId = null;
+  }
+
+  let vehicleLicense: string | null = j.vehicleLicense || null;
+  if (vehicleLicense) {
+    const { data } = await supabase.from('vehicles').select('license_plate').eq('license_plate', vehicleLicense);
+    if (!data || data.length === 0) vehicleLicense = null;
+  }
+
   const { error } = await supabase.from('transport_jobs').upsert({
     job_no: j.jobNo,
     date: j.date,
-    customer_id: j.customerId || null,
+    customer_id: customerId,
     customer_name: j.customerName,
     origin: j.origin,
     destination: j.destination,
-    vehicle_license: j.vehicleLicense || null,
+    vehicle_license: vehicleLicense,
     driver_name: j.driverName,
     vehicle_type: j.vehicleType,
     booking_no: j.bookingNo,
@@ -903,12 +948,18 @@ export async function dbDeleteJob(jobNo: string) {
 
 // 6. Expenses
 export async function dbSaveExpense(e: DailyExpense) {
+  let vehicleLicense: string | null = e.vehicleLicense || null;
+  if (vehicleLicense) {
+    const { data } = await supabase.from('vehicles').select('license_plate').eq('license_plate', vehicleLicense);
+    if (!data || data.length === 0) vehicleLicense = null;
+  }
+
   const { error } = await supabase.from('daily_expenses').upsert({
     id: e.id,
     date: e.date,
     type: e.type,
     description: e.description,
-    vehicle_license: e.vehicleLicense || null,
+    vehicle_license: vehicleLicense,
     driver_name: e.driverName,
     amount: e.amount,
     note: e.note,
@@ -924,10 +975,16 @@ export async function dbDeleteExpense(id: string) {
 
 // 7. Invoices
 export async function dbSaveInvoice(inv: Invoice) {
+  let customerId: string | null = inv.customerId || null;
+  if (customerId) {
+    const { data } = await supabase.from('customers').select('id').eq('id', customerId);
+    if (!data || data.length === 0) customerId = null;
+  }
+
   const { error } = await supabase.from('invoices').upsert({
     invoice_no: inv.invoiceNo,
     date: inv.date,
-    customer_id: inv.customerId || null,
+    customer_id: customerId,
     customer_name: inv.customerName,
     job_no: inv.jobNo,
     invoice_type: inv.invoiceType,
@@ -959,10 +1016,16 @@ export async function dbDeleteInvoice(invoiceNo: string) {
 
 // 8. Receipts
 export async function dbSaveReceipt(r: Receipt) {
+  let invoiceNo: string | null = r.invoiceNo || null;
+  if (invoiceNo) {
+    const { data } = await supabase.from('invoices').select('invoice_no').eq('invoice_no', invoiceNo);
+    if (!data || data.length === 0) invoiceNo = null;
+  }
+
   const { error } = await supabase.from('receipts').upsert({
     receipt_no: r.receiptNo,
     date: r.date,
-    invoice_no: r.invoiceNo || null,
+    invoice_no: invoiceNo,
     customer_name: r.customerName,
     amount: r.amount,
     payment_method: r.paymentMethod,
