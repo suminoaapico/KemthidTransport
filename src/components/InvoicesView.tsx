@@ -124,8 +124,12 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
 
   const resetForm = () => {
     setIsEditMode(false);
-    setInvoiceNo(`INV-${new Date().getFullYear()}-${String(invoices.length + 1).padStart(4, '0')}`);
-    setDate(new Date().toISOString().split('T')[0]);
+    const today = new Date().toISOString().split('T')[0];
+    setDate(today);
+    const parts = today.split('-');
+    const year = parts[0] || String(new Date().getFullYear());
+    const month = parts[1] || String(new Date().getMonth() + 1).padStart(2, '0');
+    setInvoiceNo(`KTT-${year}-${month}-${String(invoices.length + 1).padStart(4, '0')}`);
     setCustomerId(customers[0]?.id || '');
     setJobNo('');
     setInvoiceType('Transport');
@@ -133,6 +137,16 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
     setShipper('');
     setContainers([]);
     setAdvanceItems([{ id: 'ADV-I-001', description: 'ค่าผ่านประตูท่าเรือแหลมฉบัง LCB', amount: 1200 }]);
+  };
+
+  const handleDateChange = (newDate: string) => {
+    setDate(newDate);
+    if (!isEditMode) {
+      const parts = newDate.split('-');
+      const year = parts[0] || String(new Date().getFullYear());
+      const month = parts[1] || String(new Date().getMonth() + 1).padStart(2, '0');
+      setInvoiceNo(`KTT-${year}-${month}-${String(invoices.length + 1).padStart(4, '0')}`);
+    }
   };
 
   const handleOpenAdd = () => {
@@ -424,7 +438,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 <input 
                   type="date" 
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => handleDateChange(e.target.value)}
                   className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none"
                   required
                 />

@@ -49,12 +49,24 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
 
   const resetForm = () => {
     setIsEditMode(false);
-    setReceiptNo(`RE-${new Date().getFullYear()}-${String(receipts.length + 1).padStart(4, '0')}`);
-    setDate(new Date().toISOString().split('T')[0]);
+    const today = new Date().toISOString().split('T')[0];
+    setDate(today);
+    const parts = today.split('-');
+    const year = parts[0] || String(new Date().getFullYear());
+    setReceiptNo(`RC-TR-${year}-${String(receipts.length + 1).padStart(4, '0')}`);
     setInvoiceNo('');
     setPaymentMethod('โอนเงิน');
     setSelectedCustomerName('');
     setSelectedInvoiceNos([]);
+  };
+
+  const handleDateChange = (newDate: string) => {
+    setDate(newDate);
+    if (!isEditMode) {
+      const parts = newDate.split('-');
+      const year = parts[0] || String(new Date().getFullYear());
+      setReceiptNo(`RC-TR-${year}-${String(receipts.length + 1).padStart(4, '0')}`);
+    }
   };
 
   const handleOpenAdd = () => {
@@ -320,7 +332,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                 <input 
                   type="date" 
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => handleDateChange(e.target.value)}
                   className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none"
                   required
                 />
