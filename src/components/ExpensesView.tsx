@@ -24,6 +24,7 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
   // Form State
   const [id, setId] = useState('');
   const [selectedJobNo, setSelectedJobNo] = useState('');
+  const [containerNo, setContainerNo] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [type, setType] = useState<DailyExpense['type']>('น้ำมัน');
   const [description, setDescription] = useState('');
@@ -62,7 +63,8 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
       e.note.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.driverName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.vehicleLicense.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.type.toLowerCase().includes(searchTerm.toLowerCase());
+      e.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.containerNo && e.containerNo.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesBillType = activeBillTab === 'All' || e.billType === activeBillTab;
 
@@ -72,6 +74,7 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
   const resetForm = () => {
     const firstJob = jobs && jobs.length > 0 ? jobs[0] : null;
     setSelectedJobNo(firstJob ? firstJob.jobNo : '');
+    setContainerNo(firstJob && firstJob.containers && firstJob.containers.length > 0 ? firstJob.containers[0].containerNo : '');
     setId('');
     setDate(new Date().toISOString().split('T')[0]);
     setType('น้ำมัน');
@@ -94,6 +97,7 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
   const handleOpenEditModal = (e: DailyExpense) => {
     setId(e.id);
     setSelectedJobNo(e.jobNo || '');
+    setContainerNo(e.containerNo || '');
     setDate(e.date);
     setType(e.type);
     setDescription(e.description);
@@ -114,7 +118,14 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
     if (foundJob) {
       if (foundJob.driverName) setDriverName(foundJob.driverName);
       if (foundJob.vehicleLicense) setVehicleLicense(foundJob.vehicleLicense);
+      if (foundJob.containers && foundJob.containers.length > 0) {
+        setContainerNo(foundJob.containers[0].containerNo);
+      } else {
+        setContainerNo('');
+      }
       setDescription(`วิ่งงานจ๊อบ ${jobNo} [${foundJob.origin} ➔ ${foundJob.destination}]`);
+    } else {
+      setContainerNo('');
     }
   };
 
@@ -175,6 +186,7 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
     const savedExpense: DailyExpense = {
       id: finalId,
       jobNo: selectedJobNo,
+      containerNo,
       date,
       type,
       description,
@@ -248,17 +260,17 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
           </button>
           <button 
             onClick={() => setActiveBillTab('Normal')}
-            className={`px-3 py-1.5 rounded-md font-semibold transition-all flex items-center gap-1.5 ${activeBillTab === 'Normal' ? 'bg-sky-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`px-3 py-1.5 rounded-md font-semibold transition-all flex items-center gap-1.5 ${activeBillTab === 'Normal' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
           >
-            <span className="w-2 h-2 rounded-full bg-white"></span>
-            งานปกติ ({expenses.filter(e => e.billType === 'Normal').length})
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+            รถบริษัท ({expenses.filter(e => e.billType === 'Normal').length})
           </button>
           <button 
             onClick={() => setActiveBillTab('Adv')}
-            className={`px-3 py-1.5 rounded-md font-semibold transition-all flex items-center gap-1.5 ${activeBillTab === 'Adv' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`px-3 py-1.5 rounded-md font-semibold transition-all flex items-center gap-1.5 ${activeBillTab === 'Adv' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
           >
-            <span className="w-2 h-2 rounded-full bg-white"></span>
-            เงินสำรองจ่าย Adv ({expenses.filter(e => e.billType === 'Adv').length})
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+            รถร่วม ({expenses.filter(e => e.billType === 'Adv').length})
           </button>
         </div>
 
@@ -291,7 +303,7 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
               <tr className="bg-slate-50 border-b border-slate-200 font-mono text-slate-600">
                 <th className="p-3 border-r border-slate-150 font-semibold">เลขจ๊อบอ้างอิง (Job Ref)</th>
                 <th className="p-3 border-r border-slate-150 font-semibold text-center">วันที่เบิกเงิน</th>
-                <th className="p-3 border-r border-slate-150 font-semibold text-center">ประเภทบัญชีกลุ่ม</th>
+                <th className="p-3 border-r border-slate-150 font-semibold text-center">ประเภทรถ/กลุ่ม</th>
                 <th className="p-3 border-r border-slate-150 font-semibold">ประเภทค่าใช้จ่าย</th>
                 <th className="p-3 border-r border-slate-150 font-semibold">รายละเอียดรายการเบิกค่าใช้จ่าย</th>
                 <th className="p-3 border-r border-slate-150 font-semibold">ทะเบียนรถ</th>
@@ -314,10 +326,15 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
                     <td className="p-3 border-r border-slate-150 font-mono font-bold align-middle">
                       <div className="flex flex-col">
                         <span className="text-slate-900 font-bold font-mono text-xs">{exp.jobNo || 'ทั่วไป / ไม่มีจ๊อบ'}</span>
+                        {exp.containerNo && (
+                          <span className="text-[10px] text-indigo-700 font-extrabold bg-indigo-50 border border-indigo-150 rounded px-1 w-max mt-0.5">
+                            ตู้: {exp.containerNo}
+                          </span>
+                        )}
                         {exp.id.includes('/') ? (
-                          <span className="text-[10px] text-slate-400 font-normal">({exp.id.split('/')[1]})</span>
+                          <span className="text-[9px] text-slate-400 font-normal">({exp.id.split('/')[1]})</span>
                         ) : (
-                          <span className="text-[10px] text-slate-400 font-normal">({exp.id})</span>
+                          <span className="text-[9px] text-slate-400 font-normal">({exp.id})</span>
                         )}
                       </div>
                     </td>
@@ -326,12 +343,12 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
                     </td>
                     <td className="p-3 border-r border-slate-150 text-center align-middle whitespace-nowrap">
                       {exp.billType === 'Adv' ? (
-                        <span className="bg-orange-50 text-orange-700 border border-orange-200 font-bold px-2 py-0.5 rounded-md text-[10px] tracking-wide font-mono">
-                          ADVANCE (เงินสำรอง)
+                        <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold px-2 py-0.5 rounded-md text-[10px] tracking-wide">
+                          รถร่วม
                         </span>
                       ) : (
-                        <span className="bg-sky-50 text-sky-700 border border-sky-200 font-bold px-2 py-0.5 rounded-md text-[10px] tracking-wide font-mono">
-                          NORMAL (ค่าใช้จ่ายหลัก)
+                        <span className="bg-amber-50 text-amber-800 border border-amber-200 font-bold px-2 py-0.5 rounded-md text-[10px] tracking-wide">
+                          รถบริษัท
                         </span>
                       )}
                     </td>
@@ -444,6 +461,30 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
                     </select>
                   )}
                 </div>
+
+                {/* Container No Selector - "ช่องต่อจาก job no. ตรงสีส้มขอเป็นช่องเลือกเบอร์ตู้เพื่อคีย์เบิกค่าใช่จ่ายค่ะ" */}
+                {selectedJobNo && (
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-xs font-bold text-slate-700 block flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+                      เลือกหมายเลขตู้คอนเทนเนอร์เพื่อคีย์เบิก (Container No.)
+                    </label>
+                    <select
+                      value={containerNo}
+                      onChange={(e) => setContainerNo(e.target.value)}
+                      className="w-full text-xs font-mono font-extrabold text-slate-900 border border-slate-200 bg-white focus:border-indigo-500 rounded-lg p-2.5 outline-none"
+                      required
+                    >
+                      <option value="">-- กรุณาเลือกหมายเลขตู้คอนเทนเนอร์ --</option>
+                      {(jobs.find(j => j.jobNo === selectedJobNo)?.containers || []).map(c => (
+                        <option key={c.containerNo} value={c.containerNo} className="font-mono">
+                          {c.containerNo || 'ไม่ระบุ'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div className="space-y-1 sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 block">วันที่จ่ายเงิน</label>
                   <input 
@@ -456,9 +497,9 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">ประเภทกลุ่มการทำจ่าย (Bill Type)</label>
+                  <label className="text-xs font-bold text-slate-700 block">ประเภทกลุ่มรถการทำจ่าย (Bill Type)</label>
                   <div className="grid grid-cols-2 gap-3 pt-1">
-                    <label className={`border rounded-lg p-2.5 flex items-center justify-center gap-2 text-xs font-bold cursor-pointer transition-all ${billType === 'Normal' ? 'bg-sky-50 border-sky-300 text-sky-850 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <label className={`border rounded-lg p-2.5 flex flex-col items-center justify-center gap-1 text-xs font-bold cursor-pointer transition-all ${billType === 'Normal' ? 'bg-amber-50 border-amber-300 text-amber-850 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                       <input 
                         type="radio" 
                         name="billType" 
@@ -467,9 +508,10 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
                         onChange={() => setBillType('Normal')}
                         className="hidden"
                       />
-                      <span>Normal (หลัก)</span>
+                      <span className="text-[11px] font-extrabold">รถบริษัท</span>
+                      <span className="text-[9px] font-normal text-slate-400 font-mono">Normal (หลัก)</span>
                     </label>
-                    <label className={`border rounded-lg p-2.5 flex items-center justify-center gap-2 text-xs font-bold cursor-pointer transition-all ${billType === 'Adv' ? 'bg-orange-50 border-orange-300 text-orange-850 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <label className={`border rounded-lg p-2.5 flex flex-col items-center justify-center gap-1 text-xs font-bold cursor-pointer transition-all ${billType === 'Adv' ? 'bg-emerald-50 border-emerald-300 text-emerald-850 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                       <input 
                         type="radio" 
                         name="billType" 
@@ -478,7 +520,8 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
                         onChange={() => setBillType('Adv')}
                         className="hidden"
                       />
-                      <span>Advance (สำรอง)</span>
+                      <span className="text-[11px] font-extrabold">รถร่วม</span>
+                      <span className="text-[9px] font-normal text-slate-400 font-mono">Advance (สำรอง)</span>
                     </label>
                   </div>
                 </div>

@@ -33,11 +33,47 @@ import { ReceiptsView } from './components/ReceiptsView';
 import { RegistryView } from './components/RegistryView';
 import { FinanceView } from './components/FinanceView';
 import { ManualView } from './components/ManualView';
+import { ReportsView } from './components/ReportsView';
 
-type AppTab = 'dashboard' | 'jobs' | 'expenses' | 'invoices' | 'receipts' | 'registry' | 'finance' | 'manual';
+type AppTab = 'dashboard' | 'jobs' | 'expenses' | 'invoices' | 'receipts' | 'registry' | 'finance' | 'reports' | 'manual';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
+  
+  // Authentication states
+  const [currentUser, setCurrentUser] = useState<'staff' | 'manager' | null>(() => {
+    const cached = localStorage.getItem('khemthit_user');
+    if (cached === 'staff' || cached === 'manager') return cached as 'staff' | 'manager';
+    return null;
+  });
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    const user = usernameInput.trim().toLowerCase();
+    if (user === 'staff' && passwordInput === 'st123456') {
+      setCurrentUser('staff');
+      localStorage.setItem('khemthit_user', 'staff');
+      setActiveTab('dashboard');
+    } else if (user === 'manager' && passwordInput === 'mg123456') {
+      setCurrentUser('manager');
+      localStorage.setItem('khemthit_user', 'manager');
+      setActiveTab('reports');
+    } else {
+      setLoginError('ชื่อผู้ใช้หรือรหัสผ่านเข้าระบบไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('khemthit_user');
+    setUsernameInput('');
+    setPasswordInput('');
+    setLoginError('');
+  };
   
   // Entire local state database representation
   const [state, setState] = useState(() => loadLocalData());
@@ -205,6 +241,103 @@ export default function App() {
     }
   };
 
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white font-sans flex flex-col justify-center items-center p-4 relative overflow-hidden">
+        {/* Decorative background blobs for premium feel */}
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-25%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-500/10 blur-[150px] pointer-events-none" />
+
+        <div className="max-w-md w-full bg-slate-800/80 backdrop-blur-md border border-slate-700/65 p-8 rounded-3xl shadow-2xl relative space-y-8">
+          {/* Logo & Header */}
+          <div className="text-center space-y-4">
+            <div className="w-24 h-24 mx-auto flex items-center justify-center p-2 rounded-2xl bg-white shadow-md">
+              <img 
+                src="https://lh3.googleusercontent.com/d/14sHmuOzVEZbKgOZP5p7COS1rfXJvi5w_" 
+                alt="บริษัท เข็มทิศ ทรานสปอร์ต จำกัด" 
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="space-y-1">
+              <h1 className="text-lg font-extrabold tracking-tight text-white uppercase font-sans">
+                KHEMTHIT TRANSPORT CO.,LTD.
+              </h1>
+              <p className="text-xs text-slate-400 font-medium font-sans">
+                ระบบบริหารงานและจัดการโลจิสติกส์ครบวงจร
+              </p>
+            </div>
+          </div>
+
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-4 font-sans">
+            <div className="space-y-1.5">
+              <label className="text-xs text-slate-300 font-bold block">
+                ชื่อผู้ใช้งาน (Username)
+              </label>
+              <input 
+                type="text"
+                required
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="ป้อนชื่อผู้ใช้ของคุณ..."
+                className="w-full text-xs p-3.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-white font-medium"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-slate-300 font-bold block">
+                รหัสผ่านเข้าระบบ (Password)
+              </label>
+              <input 
+                type="password"
+                required
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="••••••••"
+                className="w-full text-xs p-3.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-white font-mono"
+              />
+            </div>
+
+            {loginError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-[11px] font-bold leading-normal flex items-start gap-1.5 animate-pulse">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <span>{loginError}</span>
+              </div>
+            )}
+
+            <button 
+              type="submit"
+              className="w-full font-bold text-xs p-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98] border-b-2 border-indigo-805 border-indigo-800"
+            >
+              เข้าสู่ระบบนำส่งข้อมูล
+            </button>
+          </form>
+
+          {/* User Guide Credentials Indicator for Testing Convenience */}
+          <div className="pt-4 border-t border-slate-700/50 text-[11px] text-slate-500 text-center space-y-1 block font-sans">
+            <span className="font-bold text-slate-400">ข้อมูลสิทธิ์การเข้าใช้งาน:</span>
+            <div className="flex justify-center gap-4 text-[10px] text-slate-500">
+              <div>
+                <span className="text-indigo-400 font-semibold block">Login ด้วยสตาฟเพื่อจัดการป้อนข้อมูลระบบ (Full Access)</span>
+               
+              </div>
+              <div className="border-l border-slate-700/55" />
+              <div>
+                <span className="text-amber-400 font-semibold block">Login ผู้จัดการเพื่อดูรายงานกำไรขาดทุน (Reports Only)</span>
+               
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-[10px] text-slate-600 font-sans mt-8 text-center leading-normal select-none pointer-events-none">
+          © {new Date().getFullYear()} บริษัท เข็มทิศ ทรานสปอร์ต จำกัด • ความปลอดภัยโครงสร้างระบบสูงสุด
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col antialiased">
       {/* Top Banner Branding / Header Section */}
@@ -223,55 +356,75 @@ export default function App() {
             </div>
           </div>
 
-          {/* Sync status widget controllers */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Supabase Core Integration Widget */}
-            <button
-              onClick={() => {
-                setShowSupabasePanel(!showSupabasePanel);
-                setShowConfigPanel(false);
-              }}
-              className={`flex items-center gap-1.5 p-1.5 px-3 rounded-xl border text-xs font-bold transition-all ${
-                supabaseStatus === 'connected' 
-                  ? 'bg-emerald-950/80 border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/80' 
-                  : supabaseStatus === 'checking'
-                  ? 'bg-amber-950/80 border-amber-500/30 text-amber-400 hover:bg-amber-900/80'
-                  : supabaseStatus === 'no_tables'
-                  ? 'bg-amber-950/80 border-amber-600/50 text-amber-500 hover:bg-amber-905'
-                  : 'bg-red-950/80 border-red-500/30 text-red-400 hover:bg-red-900/80'
-              }`}
-            >
-              <Database className={`w-3.5 h-3.5 ${supabaseStatus === 'checking' ? 'animate-spin' : ''}`} />
+          {/* Sync status widget controllers and user auth profile indicator */}
+          <div className="flex items-center gap-3.5 flex-wrap">
+            {/* User status badge */}
+            <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-705 p-1.5 px-3 rounded-xl text-xs font-bold text-slate-200">
+              <Users className="w-3.5 h-3.5 text-indigo-400" />
               <span>
-                Supabase: {
-                  supabaseStatus === 'connected' ? 'Live (100%)' :
-                  supabaseStatus === 'checking' ? 'Checking...' :
-                  supabaseStatus === 'no_tables' ? 'No Tables' : 'Disconnected'
-                }
+                {currentUser === 'staff' ? 'สิทธิ์: เจ้าหน้าที่ทั่วไป (Staff)' : 'สิทธิ์: ผู้จัดการ (Manager)'}
               </span>
-              <span className="text-[9px] bg-slate-800 text-slate-300 font-normal px-1 shadow-sm rounded">ตั้งค่า SQL</span>
-            </button>
-
-            {/* Google Sheets Backup Widget */}
-            <div className="bg-slate-800/80 border border-slate-700/80 p-1.5 px-3 rounded-xl flex items-center gap-3">
-              <button
-                onClick={() => {
-                  setShowConfigPanel(!showConfigPanel);
-                  setShowSupabasePanel(false);
-                }}
-                className="text-[10px] font-bold text-slate-200 hover:text-white flex items-center gap-1 transition-all"
-              >
-                <CloudLightning className="w-3.5 h-3.5 text-indigo-400" /> เชื่อม Google Sheets
-              </button>
-              <div className="h-4 w-px bg-slate-700" />
-              <button 
-                onClick={handlePushToSheets}
-                className="text-slate-200 hover:text-white"
-                title="ส่งออกสำเนาบันทึกไปยังชีท (Backup)"
-              >
-                <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              </button>
             </div>
+
+            {currentUser === 'staff' && (
+              <>
+                {/* Supabase Core Integration Widget */}
+                <button
+                  onClick={() => {
+                    setShowSupabasePanel(!showSupabasePanel);
+                    setShowConfigPanel(false);
+                  }}
+                  className={`flex items-center gap-1.5 p-1.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                    supabaseStatus === 'connected' 
+                      ? 'bg-emerald-950/80 border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/80' 
+                      : supabaseStatus === 'checking'
+                      ? 'bg-amber-950/80 border-amber-500/30 text-amber-400 hover:bg-amber-900/80'
+                      : supabaseStatus === 'no_tables'
+                      ? 'bg-amber-950/80 border-amber-600/50 text-amber-500 hover:bg-amber-905'
+                      : 'bg-red-950/80 border-red-500/30 text-red-400 hover:bg-red-900/80'
+                  }`}
+                >
+                  <Database className={`w-3.5 h-3.5 ${supabaseStatus === 'checking' ? 'animate-spin' : ''}`} />
+                  <span>
+                    Supabase: {
+                      supabaseStatus === 'connected' ? 'Live (100%)' :
+                      supabaseStatus === 'checking' ? 'Checking...' :
+                      supabaseStatus === 'no_tables' ? 'No Tables' : 'Disconnected'
+                    }
+                  </span>
+                  <span className="text-[9px] bg-slate-800 text-slate-300 font-normal px-1 shadow-sm rounded">ตั้งค่า SQL</span>
+                </button>
+
+                {/* Google Sheets Backup Widget */}
+                <div className="bg-slate-800/80 border border-slate-750 p-1.5 px-3 rounded-xl flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setShowConfigPanel(!showConfigPanel);
+                      setShowSupabasePanel(false);
+                    }}
+                    className="text-[10px] font-bold text-slate-200 hover:text-white flex items-center gap-1 transition-all"
+                  >
+                    <CloudLightning className="w-3.5 h-3.5 text-indigo-400" /> เชื่อม Google Sheets
+                  </button>
+                  <div className="h-4 w-px bg-slate-700" />
+                  <button 
+                    onClick={handlePushToSheets}
+                    className="text-slate-200 hover:text-white"
+                    title="ส่งออกสำเนาบันทึกไปยังชีท (Backup)"
+                  >
+                    <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Logout trigger button */}
+            <button
+              onClick={handleLogout}
+              className="bg-red-950/60 hover:bg-red-900/60 border border-red-500/20 text-red-350 font-bold p-1.5 px-3 rounded-xl text-xs transition-all active:scale-[0.97]"
+            >
+              ออกจากระบบ
+            </button>
           </div>
         </div>
       </header>
@@ -458,68 +611,96 @@ export default function App() {
       {/* Main Tab bar Navigator (Tabs mapping out the 14 requirements clearly) */}
       <nav className="bg-white border-b border-slate-200 z-10 sticky top-0 shadow-xs no-print">
         <div className="max-w-7xl mx-auto px-4 overflow-x-auto flex items-center font-sans">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'dashboard' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-          >
-            <BarChart2 className="w-4 h-4" /> แดชบอร์ดสรุปภาพรวม
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab('jobs')}
-            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'jobs' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-          >
-            <Truck className="w-4 h-4" /> แผนจราจรวิ่งงานขนส่ง
-          </button>
+          {currentUser === 'staff' && (
+            <>
+              <button 
+                onClick={() => setActiveTab('dashboard')}
+                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'dashboard' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <BarChart2 className="w-4 h-4" /> แดชบอร์ดสรุปภาพรวม
+              </button>
+              
+              <button 
+                onClick={() => setActiveTab('jobs')}
+                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'jobs' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <Truck className="w-4 h-4" /> แผนจราจรวิ่งงานขนส่ง
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('expenses')}
+                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'expenses' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <DollarSign className="w-4 h-4" /> บันทึกจ่ายน้ำมัน&ทางด่วน
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('invoices')}
+                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'invoices' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <FileText className="w-4 h-4" /> ออกใบแจ้งหนี้ (หัก 1%)
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('receipts')}
+                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'receipts' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <CheckSquare className="w-4 h-4" /> ออกใบเสร็จรับเงิน
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('registry')}
+                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'registry' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <Users className="w-4 h-4" /> ทะเบียนตารางหลัก (4 ฐาน)
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('finance')}
+                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'finance' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <Settings className="w-4 h-4" /> บัญชีเงินกู้, เงินเดือน & งบ P&L
+              </button>
+            </>
+          )}
 
           <button 
-            onClick={() => setActiveTab('expenses')}
-            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'expenses' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+            onClick={() => setActiveTab('reports')}
+            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'reports' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
           >
-            <DollarSign className="w-4 h-4" /> บันทึกจ่ายน้ำมัน&ทางด่วน
+            <BarChart2 className="w-4 h-4" /> รายงานสรุปรายได้-จ่าย
           </button>
 
-          <button 
-            onClick={() => setActiveTab('invoices')}
-            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'invoices' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-          >
-            <FileText className="w-4 h-4" /> ออกใบแจ้งหนี้ (หัก 1%)
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('receipts')}
-            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'receipts' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-          >
-            <CheckSquare className="w-4 h-4" /> ออกใบเสร็จรับเงิน
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('registry')}
-            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'registry' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-          >
-            <Users className="w-4 h-4" /> ทะเบียนตารางหลัก (4 ฐาน)
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('finance')}
-            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'finance' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-          >
-            <Settings className="w-4 h-4" /> บัญชีเงินกู้, เงินเดือน & งบ P&L
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('manual')}
-            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'manual' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-emerald-600 hover:text-emerald-900 bg-emerald-500/5'}`}
-          >
-            <HelpCircle className="w-4 h-4 text-emerald-500" /> คู่มือการใช้งานระบบ
-          </button>
+          {currentUser === 'staff' && (
+            <button 
+              onClick={() => setActiveTab('manual')}
+              className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'manual' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-emerald-600 hover:text-emerald-900 bg-emerald-500/5'}`}
+            >
+              <HelpCircle className="w-4 h-4 text-emerald-500" /> คู่มือการใช้งานระบบ
+            </button>
+          )}
         </div>
       </nav>
 
       {/* Main Core View Area render dependence on current Nav Bar click */}
       <main className="flex-1 max-w-7xl mx-auto px-4 py-6 w-full space-y-6">
         
-        {activeTab === 'dashboard' && (
+        {currentUser === 'manager' ? (
+          <ReportsView 
+            jobs={state.jobs}
+            expenses={state.expenses}
+            invoices={state.invoices}
+            receipts={state.receipts}
+            drivers={state.drivers}
+            vehicles={state.vehicles}
+            customers={state.customers}
+            partnerPayments={state.partnerPayments}
+            payroll={state.payroll}
+            employees={state.employees}
+          />
+        ) : (
+          <>
+            {activeTab === 'dashboard' && (
           <DashboardView 
             jobs={state.jobs}
             expenses={state.expenses}
@@ -811,8 +992,25 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'manual' && (
-          <ManualView />
+        {activeTab === 'reports' && (
+          <ReportsView 
+            jobs={state.jobs}
+            expenses={state.expenses}
+            invoices={state.invoices}
+            receipts={state.receipts}
+            drivers={state.drivers}
+            vehicles={state.vehicles}
+            customers={state.customers}
+            partnerPayments={state.partnerPayments}
+            payroll={state.payroll}
+            employees={state.employees}
+          />
+        )}
+
+            {activeTab === 'manual' && (
+              <ManualView />
+            )}
+          </>
         )}
 
       </main>

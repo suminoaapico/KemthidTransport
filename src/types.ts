@@ -42,6 +42,8 @@ export interface Employee {
 export interface ContainerExpense {
   name: string;
   amount: number;
+  qty?: number;
+  rate?: number;
 }
 
 export interface ContainerDetail {
@@ -78,11 +80,19 @@ export interface TransportJob {
   containers: ContainerDetail[];
   totalAmount: number; // Calculated sum of transportation and charges
   status: 'รอดำเนินการ' | 'กำลังขนส่ง' | 'ส่งแล้ว' | 'วางบิลแล้ว' | 'รับเงินแล้ว';
+  jobType?: 'Import' | 'Export';
+  quantity?: number;
+  containerSize?: string;
+  shipAgent?: string;
+  pickupAt?: string;
+  loadAt?: string;
+  returnAt?: string;
 }
 
 export interface DailyExpense {
   id: string;
   jobNo: string;
+  containerNo?: string;
   date: string;
   type: 'น้ำมัน' | 'ค่าทางด่วน' | 'ค่าซ่อม' | 'ค่าแรง' | 'ค่าอาหาร' | 'อื่นๆ';
   description: string;

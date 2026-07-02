@@ -70,15 +70,43 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
     }
 
     const matchedInvoices = invoices.filter(inv => selectedInvoiceNos.includes(inv.invoiceNo));
-    const totalAmount = matchedInvoices.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
+    
+    // Calculate sum of transportation and Overtime only, as requested
+    let transportAndOvertimeTotal = 0;
+    matchedInvoices.forEach(inv => {
+      if (inv.invoiceType === 'Transport') {
+        inv.containers.forEach(c => {
+          transportAndOvertimeTotal += (c.transportation || 0);
+          const overtimeExp = (c.expenses || []).filter(exp => exp.name === 'Overtime');
+          overtimeExp.forEach(exp => {
+            transportAndOvertimeTotal += (exp.amount || 0);
+          });
+        });
+      } else {
+        // If it's an advance invoice and no transport invoices are selected, we can sum it up or keep as 0. 
+        // Let's support it if only advance invoices are selected, but prefer transport if both.
+      }
+    });
+
     const receiptType = matchedInvoices.some(inv => inv.invoiceType === 'Transport') ? 'Transport' : 'Advance';
+
+    let finalAmount = 0;
+    if (receiptType === 'Transport') {
+      const wht = Math.round(transportAndOvertimeTotal * 0.01 * 100) / 100;
+      finalAmount = transportAndOvertimeTotal - wht;
+    } else {
+      // Pure advance receipt fallback
+      const rawSub = matchedInvoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
+      const vat = Math.round(rawSub * 0.07 * 100) / 100;
+      finalAmount = rawSub + vat;
+    }
 
     const newReceipt: Receipt = {
       receiptNo,
       date,
       invoiceNo: selectedInvoiceNos.join(', '),
       customerName: selectedCustomerName,
-      amount: totalAmount,
+      amount: finalAmount,
       paymentMethod,
       receiptType
     };
@@ -427,7 +455,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
         </div>
       )}
 
-{/* Cash receipt elegant visual model preview */}
+      {/* Cash receipt elegant visual model preview */}
       {previewReceipt && (
         <div className="space-y-4">
           <div className="flex items-center justify-between bg-slate-900 text-white p-4 rounded-xl shadow-md no-print">
@@ -460,7 +488,6 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
             </div>
           </div>
 
-          {/* PDF/Print Guidelines Alert Banner */}
           <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-xs flex items-start gap-2.5 max-w-4xl mx-auto no-print shadow-sm">
             <span className="text-base shrink-0 leading-none">💡</span>
             <div className="space-y-1">
@@ -516,21 +543,33 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                 const linkedInvoiceNos = previewReceipt.invoiceNo.split(',').map(n => n.trim()).filter(Boolean);
                 const matchedInvoices = invoices.filter(inv => linkedInvoiceNos.includes(inv.invoiceNo));
                 
-                const subtotal = matchedInvoices.length > 0
-                  ? matchedInvoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0)
-                  : previewReceipt.amount;
+                // Calculate subtotal from transportation and Overtime only, as requested
+                let subtotal = 0;
+                let isTransport = false;
                 
-                const vatAmount = matchedInvoices.length > 0
-                  ? matchedInvoices.reduce((sum, inv) => sum + (inv.vatAmount || 0), 0)
-                  : 0;
+                if (matchedInvoices.length > 0) {
+                  matchedInvoices.forEach(inv => {
+                    if (inv.invoiceType === 'Transport') {
+                      isTransport = true;
+                      inv.containers.forEach(c => {
+                        subtotal += (c.transportation || 0);
+                        const overtimeExp = (c.expenses || []).filter(exp => exp.name === 'Overtime');
+                        overtimeExp.forEach(exp => {
+                          subtotal += (exp.amount || 0);
+                        });
+                      });
+                    }
+                  });
+                }
                 
-                const withholdingTax = matchedInvoices.length > 0
-                  ? matchedInvoices.reduce((sum, inv) => sum + (inv.withholdingTax || 0), 0)
-                  : 0;
-                
-                const grandTotal = matchedInvoices.length > 0
-                  ? matchedInvoices.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0)
-                  : previewReceipt.amount;
+                if (subtotal === 0) {
+                  // Fallback to receipt amount if no transport invoices are selected or pure advance
+                  subtotal = previewReceipt.amount;
+                }
+
+                const withholdingTax = isTransport ? Math.round(subtotal * 0.01 * 100) / 100 : 0;
+                const vatAmount = 0; // Transport receipt is 0% VAT
+                const grandTotal = subtotal - withholdingTax;
                 
                 const totalText = arabicToThaiBaht(grandTotal);
                 
@@ -587,7 +626,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                       <div className="space-y-1">
                         <span className="text-slate-400 text-[10px] font-bold block uppercase tracking-wider">Customers</span>
                         <span className="text-sm font-bold text-slate-900 block">{previewReceipt.customerName}</span>
-                        <p className="text-slate-705 leading-relaxed text-[11px] font-medium font-sans">
+                        <p className="text-slate-755 leading-relaxed text-[11px] font-medium font-sans">
                           ที่อยู่ : {clientAddress}
                         </p>
                         <div className="text-slate-600 text-[11px] font-mono space-y-0.5">
@@ -616,7 +655,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                           <tr className="text-slate-800">
                             <td className="p-3 text-center font-mono text-slate-600">1</td>
                             <td className="p-3 font-semibold text-slate-900">
-                              ค่าขนส่ง
+                              ค่าบริการขนส่งสินค้า และค่าบริการล่วงเวลา (Transportation & Overtime Services)
                               <div className="text-[10px] text-slate-500 font-normal font-mono mt-1">
                                 อ้างอิงใบแจ้งหนี้เลขที่ document ref: {previewReceipt.invoiceNo}
                               </div>
@@ -640,24 +679,23 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                       </div>
 
                       <div className="space-y-1 text-[11px] border bg-slate-50/30 p-3 rounded-lg border-slate-200 font-mono">
-                        <div className="flex justify-between text-slate-500">
+                        <div className="flex justify-between text-slate-500 border-b border-slate-100 pb-1">
                           <span>รวมเงิน / Total</span>
                           <span className="font-bold">{formatCurrency(subtotal)}</span>
                         </div>
-                        <div className="flex justify-between text-slate-500 border-b border-slate-150 pb-1">
-                          <span>ภาษีมูลค่าเพิ่ม / Vat 7%</span>
-                          <span className="font-bold">{formatCurrency(vatAmount)}</span>
-                        </div>
-                        <div className="flex justify-between text-slate-800 font-bold pt-1">
-                          <span>รวมทั้งสิ้น / Total Amount</span>
-                          <span>{formatCurrency(subtotal + vatAmount)}</span>
-                        </div>
-                        <div className="flex justify-between text-red-650 font-semibold">
-                          <span>ภาษีหัก ณ ที่จ่าย 1%</span>
-                          <span>{formatCurrency(withholdingTax)}</span>
-                        </div>
+                        {isTransport ? (
+                          <div className="flex justify-between text-red-650 font-semibold border-b border-slate-150 pb-1">
+                            <span>ภาษีหัก ณ ที่จ่าย 1%</span>
+                            <span>{formatCurrency(withholdingTax)}</span>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between text-slate-500 border-b border-slate-150 pb-1">
+                            <span>ภาษีมูลค่าเพิ่ม / Vat 7%</span>
+                            <span>{formatCurrency(vatAmount)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-1.5 border-t border-slate-200 font-mono">
-                          <span>ยอดชำระ / Total Net</span>
+                          <span>ยอดชำระสุทธิ / Total Net</span>
                           <span className="text-slate-910 text-sm font-bold">{formatCurrency(grandTotal)}</span>
                         </div>
                       </div>
@@ -681,12 +719,12 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                       <div className="space-y-10 relative flex flex-col items-center">
                         {/* Stamp visual decoration PAID KHEMTHIT in deep emerald style */}
                         <div className="absolute right-1/4 -top-6 w-24 h-24 rounded-full border-4 border-emerald-500/30 border-double p-0.5 flex flex-col items-center justify-center opacity-45 select-none pointer-events-none rotate-12 text-emerald-600">
-                          <div className="text-[7px] font-black tracking-widest leading-none text-center">PAID</div>
-                          <svg viewBox="0 0 100 100" className="w-8 h-8 text-emerald-500 my-0.5">
-                            <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="2" />
-                            <path d="M35,50 L45,60 L65,40" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          <div className="text-[7px] font-black leading-none text-center">KHEMTHIT<br/>TRANSPORT</div>
+                           <div className="text-[7px] font-black tracking-widest leading-none text-center">PAID</div>
+                           <svg viewBox="0 0 100 100" className="w-8 h-8 text-emerald-500 my-0.5">
+                             <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="2" />
+                             <path d="M35,50 L45,60 L65,40" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                           </svg>
+                           <div className="text-[7px] font-black leading-none text-center">KHEMTHIT<br/>TRANSPORT</div>
                         </div>
 
                         <div className="h-6"></div>
