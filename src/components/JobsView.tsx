@@ -45,6 +45,15 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
   const [shipper, setShipper] = useState('');
   const [status, setStatus] = useState<TransportJob['status']>('รอดำเนินการ');
   
+  // New Operational Fields for Job Creation
+  const [jobType, setJobType] = useState<'Import' | 'Export'>('Import');
+  const [quantity, setQuantity] = useState<number>(1);
+  const [containerSize, setContainerSize] = useState<string>('40HC');
+  const [shipAgent, setShipAgent] = useState<string>('');
+  const [pickupAt, setPickupAt] = useState<string>('');
+  const [loadAt, setLoadAt] = useState<string>('');
+  const [returnAt, setReturnAt] = useState<string>('');
+  
   // Containers sub-list
   const [containers, setContainers] = useState<ContainerDetail[]>([]);
 
@@ -73,6 +82,13 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
     setShipper('');
     setContainers([{ containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0, expenses: [] }]);
     setStatus('รอดำเนินการ');
+    setJobType('Import');
+    setQuantity(1);
+    setContainerSize('40HC');
+    setShipAgent('');
+    setPickupAt('');
+    setLoadAt('');
+    setReturnAt('');
     setIsEditMode(false);
   };
 
@@ -97,6 +113,13 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
         : [{ containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0, expenses: [] }]
     );
     setStatus(job.status);
+    setJobType(job.jobType || 'Import');
+    setQuantity(job.quantity || 1);
+    setContainerSize(job.containerSize || '40HC');
+    setShipAgent(job.shipAgent || '');
+    setPickupAt(job.pickupAt || '');
+    setLoadAt(job.loadAt || '');
+    setReturnAt(job.returnAt || '');
     setIsEditMode(true);
     setIsModalOpen(true);
   };
@@ -196,7 +219,14 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
       shipper,
       containers,
       totalAmount: calculatedTotal,
-      status
+      status,
+      jobType,
+      quantity,
+      containerSize,
+      shipAgent,
+      pickupAt,
+      loadAt,
+      returnAt
     };
 
     onSaveJob(updatedJob);
@@ -280,6 +310,28 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                         <div className="text-[10px] text-slate-400 font-mono whitespace-normal leading-tight">
                           Shipper: {j.shipper || 'N/A'} | Booking: {j.bookingNo || 'N/A'}
                         </div>
+                        {j.jobType && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className={`px-1 rounded text-[9px] font-bold ${j.jobType === 'Import' ? 'bg-blue-50 text-blue-600 border border-blue-150' : 'bg-amber-50 text-amber-600 border border-amber-150'}`}>
+                              {j.jobType}
+                            </span>
+                            {j.containerSize && (
+                              <span className="px-1 rounded text-[9px] bg-slate-100 text-slate-600 font-mono border border-slate-200">
+                                {j.containerSize}
+                              </span>
+                            )}
+                            {j.quantity && (
+                              <span className="px-1 rounded text-[9px] bg-indigo-50 text-indigo-600 border border-indigo-150 font-mono">
+                                Qty: {j.quantity}
+                              </span>
+                            )}
+                            {j.shipAgent && (
+                              <span className="px-1 rounded text-[9px] bg-purple-50 text-purple-600 border border-purple-150">
+                                Agent: {j.shipAgent}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="p-3 border-r border-slate-150 align-middle">
                         <div className="font-mono bg-slate-100 rounded px-1.5 py-0.5 inline-block text-slate-700 font-semibold text-[10px] mb-0.5">{j.vehicleLicense}</div>
@@ -291,6 +343,13 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                           <span className="font-medium text-[11px]">{j.origin}</span>
                         </div>
                         <div className="text-slate-400 pl-4 text-[10px]">ไป: {j.destination}</div>
+                        {(j.pickupAt || j.loadAt || j.returnAt) && (
+                          <div className="mt-1 pl-4 text-[9px] text-slate-400 font-sans leading-tight space-y-0.5">
+                            {j.pickupAt && <div className="truncate" title={j.pickupAt}>• รับตู้: {j.pickupAt}</div>}
+                            {j.loadAt && <div className="truncate" title={j.loadAt}>• บรรจุ: {j.loadAt}</div>}
+                            {j.returnAt && <div className="truncate" title={j.returnAt}>• คืนตู้: {j.returnAt}</div>}
+                          </div>
+                        )}
                       </td>
                       <td className="p-3 border-r border-slate-150 text-center font-bold font-mono align-middle text-slate-900">
                         {j.containers.length} ตู้
@@ -550,30 +609,105 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700 block">ต้นทางวิ่ง</label>
-                      <input 
-                        type="text" 
-                        value={origin}
-                        onChange={(e) => setOrigin(e.target.value)}
-                        placeholder="ลานตู้, ท่าเรือ LCB"
-                        className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700 block">ปลายทางวิ่ง</label>
-                      <input 
-                        type="text" 
-                        value={destination}
-                        onChange={(e) => setDestination(e.target.value)}
-                        placeholder="คลังสินค้าลูกค้า"
-                        className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
-                        required
-                      />
-                    </div>
-                  </div>
+                  <label className="text-xs font-bold text-slate-700 block">ต้นทางวิ่ง (Origin)</label>
+                  <input 
+                    type="text" 
+                    value={origin}
+                    onChange={(e) => setOrigin(e.target.value)}
+                    placeholder="ลานตู้, ท่าเรือ LCB"
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">ปลายทางวิ่ง (Destination)</label>
+                  <input 
+                    type="text" 
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    placeholder="คลังสินค้าลูกค้า"
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Type (ประเภทงาน)</label>
+                  <select
+                    value={jobType}
+                    onChange={(e) => setJobType(e.target.value as 'Import' | 'Export')}
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400 font-bold"
+                    required
+                  >
+                    <option value="Import">Import (นำเข้า)</option>
+                    <option value="Export">Export (ส่งออก)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Quantity (จำนวน)</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400 font-mono text-right"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Size Container (ขนาดตู้)</label>
+                  <select
+                    value={containerSize}
+                    onChange={(e) => setContainerSize(e.target.value)}
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
+                    required
+                  >
+                    <option value="20GP">20GP (ตู้สั้น 20 ฟุต)</option>
+                    <option value="40GP">40GP (ตู้ยาว 40 ฟุตทั่วไป)</option>
+                    <option value="40HC">40HC (ตู้ไฮคิว 40 ฟุตสูง)</option>
+                    <option value="45HC">45HC (ตู้คอนเทนเนอร์ 45 ฟุต)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Ship Agent (เอเย่นต์เรือ)</label>
+                  <input 
+                    type="text" 
+                    value={shipAgent}
+                    onChange={(e) => setShipAgent(e.target.value)}
+                    placeholder="เช่น ONE, MSK, COSCO, CO-LOAD"
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Pickup at (รับตู้ที่)</label>
+                  <input 
+                    type="text" 
+                    value={pickupAt}
+                    onChange={(e) => setPickupAt(e.target.value)}
+                    placeholder="เช่น ลานตู้สยาม, ท่าเรือ LCB"
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Load at (บรรจุที่)</label>
+                  <input 
+                    type="text" 
+                    value={loadAt}
+                    onChange={(e) => setLoadAt(e.target.value)}
+                    placeholder="เช่น โรงงานลูกค้า อมตะนคร"
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Return at (คืนตู้ที่)</label>
+                  <input 
+                    type="text" 
+                    value={returnAt}
+                    onChange={(e) => setReturnAt(e.target.value)}
+                    placeholder="เช่น ท่าเรือแหลมฉบัง B5"
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
+                  />
                 </div>
               </div>
 

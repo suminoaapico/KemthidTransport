@@ -87,6 +87,13 @@ CREATE TABLE IF NOT EXISTS transport_jobs (
   containers JSONB DEFAULT '[]'::jsonb,
   total_amount NUMERIC DEFAULT 0,
   status TEXT CHECK (status IN ('รอดำเนินการ', 'กำลังขนส่ง', 'ส่งแล้ว', 'วางบิลแล้ว', 'รับเงินแล้ว')) DEFAULT 'รอดำเนินการ',
+  job_type TEXT DEFAULT 'Import',
+  quantity INT DEFAULT 1,
+  container_size TEXT DEFAULT '40HC',
+  ship_agent TEXT,
+  pickup_at TEXT,
+  load_at TEXT,
+  return_at TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
@@ -506,7 +513,14 @@ export async function fetchAllSupabaseData(): Promise<SupabaseDataState> {
       shipper: r.shipper || '',
       containers: typeof r.containers === 'string' ? JSON.parse(r.containers) : (r.containers || []),
       totalAmount: parseFloat(r.total_amount) || 0,
-      status: r.status as any || 'รอดำเนินการ'
+      status: r.status as any || 'รอดำเนินการ',
+      jobType: r.job_type || 'Import',
+      quantity: r.quantity || 1,
+      containerSize: r.container_size || '40HC',
+      shipAgent: r.ship_agent || '',
+      pickupAt: r.pickup_at || '',
+      loadAt: r.load_at || '',
+      returnAt: r.return_at || ''
     })),
     expenses: (expRes.data || []).map(r => {
       const idStr = r.id || '';
@@ -870,7 +884,14 @@ export async function dbSaveJob(j: TransportJob) {
     shipper: j.shipper,
     containers: j.containers,
     total_amount: j.totalAmount,
-    status: j.status
+    status: j.status,
+    job_type: j.jobType || 'Import',
+    quantity: j.quantity || 1,
+    container_size: j.containerSize || '40HC',
+    ship_agent: j.shipAgent || '',
+    pickup_at: j.pickupAt || '',
+    load_at: j.loadAt || '',
+    return_at: j.returnAt || ''
   });
   if (error) throw error;
 }

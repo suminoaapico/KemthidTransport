@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   TrendingUp, TrendingDown, DollarSign, Truck, AlertCircle, 
-  Users, Fuel, CreditCard, ChevronRight, Activity, Calendar
+  Users, Fuel, CreditCard, ChevronRight, ChevronLeft, Activity, Calendar
 } from 'lucide-react';
 import { Customer, Driver, Vehicle, TransportJob, DailyExpense, CreditIncome, Invoice, Receipt } from '../types';
 import { formatCurrency, getStatusStyle } from '../utils';
@@ -18,6 +18,11 @@ interface DashboardViewProps {
 }
 
 export function DashboardView({ jobs, expenses, invoices, receipts, drivers, vehicles, customers, onNavigate }: DashboardViewProps) {
+  // Calendar State
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [selectedVehicle, setSelectedVehicle] = useState('all');
+  const [selectedJob, setSelectedJob] = useState<TransportJob | null>(null);
+
   // Calculations
   const todayStr = new Date().toISOString().split('T')[0];
   
@@ -248,6 +253,262 @@ export function DashboardView({ jobs, expenses, invoices, receipts, drivers, veh
           </div>
         </div>
       </div>
+
+      {/* Monthly Transport Calendar Section */}
+      {(() => {
+        const currentYear = calendarDate.getFullYear();
+        const currentMonth = calendarDate.getMonth();
+        const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
+        const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+        const handlePrevMonth = () => {
+          setCalendarDate(new Date(currentYear, currentMonth - 1, 1));
+        };
+
+        const handleNextMonth = () => {
+          setCalendarDate(new Date(currentYear, currentMonth + 1, 1));
+        };
+
+        const THAI_MONTHS = [
+          'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+          'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+        ];
+
+        return (
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2">
+                <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-lg border border-indigo-100">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 font-sans text-sm sm:text-base">ตารางแผนงานวิ่งขนส่งรายเดือน (Monthly Transport Calendar)</h3>
+                  <p className="text-slate-400 text-xs">ภาพรวมตารางการวิ่งรถ เพื่อช่วยจัดสรรรถและคนขับได้เหมาะสม</p>
+                </div>
+              </div>
+              
+              {/* Controls: Prev/Next & Vehicle Filter */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1">
+                  <button 
+                    onClick={handlePrevMonth}
+                    className="hover:bg-white text-slate-600 p-1.5 rounded transition-all"
+                    title="เดือนก่อนหน้า"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="font-bold text-xs text-slate-700 px-3 min-w-[120px] text-center font-sans">
+                    {THAI_MONTHS[currentMonth]} {currentYear + 543}
+                  </span>
+                  <button 
+                    onClick={handleNextMonth}
+                    className="hover:bg-white text-slate-600 p-1.5 rounded transition-all"
+                    title="เดือนถัดไป"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Vehicle Select Filter */}
+                <div className="relative">
+                  <select
+                    value={selectedVehicle}
+                    onChange={(e) => setSelectedVehicle(e.target.value)}
+                    className="bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none cursor-pointer appearance-none"
+                  >
+                    <option value="all">-- รถขนส่งทุกคัน --</option>
+                    {vehicles.map((v) => (
+                      <option key={v.licensePlate} value={v.licensePlate}>
+                        ทะเบียน: {v.licensePlate} ({v.type})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">
+                    ▼
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Calendar Grid Container */}
+            <div className="overflow-x-auto">
+              <div className="min-w-[760px]">
+                {/* Days of week header */}
+                <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-500 mb-1">
+                  <div className="py-2 bg-rose-50 text-rose-600 rounded">อา (Sun)</div>
+                  <div className="py-2 bg-slate-50 text-slate-700 rounded">จ (Mon)</div>
+                  <div className="py-2 bg-slate-50 text-slate-700 rounded">อ (Tue)</div>
+                  <div className="py-2 bg-slate-50 text-slate-700 rounded">พ (Wed)</div>
+                  <div className="py-2 bg-slate-50 text-slate-700 rounded">พฤ (Thu)</div>
+                  <div className="py-2 bg-slate-50 text-slate-700 rounded">ศ (Fri)</div>
+                  <div className="py-2 bg-sky-50 text-sky-600 rounded">ส (Sat)</div>
+                </div>
+
+                {/* Calendar Days cells */}
+                <div className="grid grid-cols-7 gap-1">
+                  {/* Render empty prefix cells */}
+                  {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                    <div key={`empty-${i}`} className="min-h-[100px] bg-slate-50/50 border border-slate-100 rounded-lg opacity-40"></div>
+                  ))}
+
+                  {/* Render days of the month */}
+                  {Array.from({ length: totalDaysInMonth }).map((_, i) => {
+                    const dayNum = i + 1;
+                    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                    
+                    // Filter jobs for this specific day & vehicle
+                    const dayJobs = jobs.filter((job) => {
+                      const matchesDate = job.date === dateStr;
+                      const matchesVehicle = selectedVehicle === 'all' || job.vehicleLicense === selectedVehicle;
+                      return matchesDate && matchesVehicle;
+                    });
+
+                    const isToday = todayStr === dateStr;
+
+                    return (
+                      <div 
+                        key={`day-${dayNum}`} 
+                        className={`min-h-[110px] p-2 border rounded-lg flex flex-col justify-between transition-all hover:shadow-sm ${
+                          isToday 
+                            ? 'bg-amber-50/40 border-amber-300 ring-2 ring-amber-300/30 ring-inset' 
+                            : 'bg-white border-slate-200'
+                        }`}
+                      >
+                        {/* Day number label */}
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-mono font-extrabold ${
+                            isToday ? 'bg-amber-500 text-white w-5 h-5 flex items-center justify-center rounded-full' : 'text-slate-600'
+                          }`}>
+                            {dayNum}
+                          </span>
+                          {dayJobs.length > 0 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                              {dayJobs.length} งาน
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Jobs list */}
+                        <div className="flex-1 space-y-1 overflow-y-auto max-h-[75px] scrollbar-thin">
+                          {dayJobs.map((job) => (
+                            <button
+                              type="button"
+                              key={job.jobNo}
+                              onClick={() => setSelectedJob(job)}
+                              className="w-full text-left p-1 rounded text-[10px] leading-tight transition-all block hover:scale-[1.02] border cursor-pointer border-slate-200 bg-slate-50 hover:bg-indigo-50/60 hover:border-indigo-200 text-slate-700 font-sans"
+                            >
+                              <div className="font-bold text-slate-900 truncate">{job.customerName}</div>
+                              <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono mt-0.5">
+                                <span className="bg-slate-100 text-slate-700 px-1 rounded truncate max-w-[50px]">{job.vehicleLicense}</span>
+                                <span className="truncate max-w-[50px]">{job.jobType || 'Import'}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Calendar Job Detail Modal Popup */}
+      {selectedJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
+              <div>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono">Transport Schedule Details</span>
+                <h4 className="font-extrabold text-sm font-sans">{selectedJob.jobNo}</h4>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setSelectedJob(null)}
+                className="text-slate-400 hover:text-white bg-slate-800 p-1 rounded-lg transition-colors text-xs font-mono px-2"
+              >
+                ปิด [X]
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-4 space-y-3 text-xs text-slate-700">
+              <div className="grid grid-cols-2 gap-2.5 border-b border-slate-100 pb-3">
+                <div>
+                  <span className="text-slate-400 text-[10px] block">วันที่ปฏิบัติงาน</span>
+                  <span className="font-bold font-mono">{selectedJob.date}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] block">ประเภทงาน</span>
+                  <span className="font-bold text-indigo-600">{selectedJob.jobType || 'Import'} ({selectedJob.containerSize || '40HC'})</span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-400 text-[10px] block">ชื่อคู่ค้า / ลูกค้า</span>
+                <span className="font-bold text-slate-900">{selectedJob.customerName}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-2.5 rounded-lg border border-slate-200/60 font-sans">
+                <div>
+                  <span className="text-slate-400 text-[10px] block">หัวลากทะเบียน</span>
+                  <span className="font-bold text-slate-800">{selectedJob.vehicleLicense}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] block">พนักงานคนขับ</span>
+                  <span className="font-bold text-slate-800">{selectedJob.driverName}</span>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-2 space-y-1">
+                <div>
+                  <span className="text-slate-400 text-[10px] block">เส้นทางขนส่งสินค้า</span>
+                  <span className="font-bold text-slate-900">{selectedJob.origin} ➔ {selectedJob.destination}</span>
+                </div>
+                {selectedJob.shipper && (
+                  <div>
+                    <span className="text-slate-400 text-[10px] block">Shipper ผู้ว่าจ้างเรือ</span>
+                    <span className="font-semibold text-slate-800">{selectedJob.shipper}</span>
+                  </div>
+                )}
+                {selectedJob.bookingNo && (
+                  <div>
+                    <span className="text-slate-400 text-[10px] block">Booking No</span>
+                    <span className="font-mono font-bold text-indigo-600">{selectedJob.bookingNo}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Containers list */}
+              <div className="border-t border-slate-100 pt-2">
+                <span className="text-slate-400 text-[10px] block mb-1">รายการตู้คอนเทนเนอร์:</span>
+                <div className="max-h-24 overflow-y-auto space-y-1 bg-slate-50/50 p-2 rounded border border-slate-150">
+                  {selectedJob.containers.map((c, index) => (
+                    <div key={index} className="flex items-center justify-between font-mono text-[11px] text-slate-600">
+                      <span>• {c.containerNo || `ตู้ที่ ${index + 1}`}</span>
+                      <span className="font-bold text-slate-800">{formatCurrency(c.transportation)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Total Revenue & Status */}
+              <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
+                <div>
+                  <span className="text-slate-400 text-[10px] block">ยอดรวมค่าขนส่ง</span>
+                  <span className="font-mono font-black text-sm text-slate-900">{formatCurrency(selectedJob.totalAmount)}</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getStatusStyle(selectedJob.status)}`}>
+                  {selectedJob.status}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sheets Style Tables Overview */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
