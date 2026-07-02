@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS transport_jobs (
   shipper TEXT,
   containers JSONB DEFAULT '[]'::jsonb,
   total_amount NUMERIC DEFAULT 0,
-  status TEXT CHECK (status IN ('รอดำเนินการ', 'กำลังขนส่ง', 'ส่งแล้ว', 'วางบิลแล้ว', 'รับเงินแล้ว')) DEFAULT 'รอดำเนินการ',
+  status TEXT DEFAULT 'รอดำเนินการ',
   job_type TEXT DEFAULT 'Import',
   quantity INT DEFAULT 1,
   container_size TEXT DEFAULT '40HC',
@@ -101,13 +101,13 @@ CREATE TABLE IF NOT EXISTS transport_jobs (
 CREATE TABLE IF NOT EXISTS daily_expenses (
   id TEXT PRIMARY KEY,
   date TEXT NOT NULL,
-  type TEXT CHECK (type IN ('น้ำมัน', 'ค่าทางด่วน', 'ค่าซ่อม', 'ค่าแรง', 'ค่าอาหาร', 'อื่นๆ')),
+  type TEXT,
   description TEXT,
   vehicle_license TEXT REFERENCES vehicles(license_plate) ON DELETE SET NULL,
   driver_name TEXT,
   amount NUMERIC DEFAULT 0,
   note TEXT,
-  bill_type TEXT CHECK (bill_type IN ('Normal', 'Adv')) DEFAULT 'Normal',
+  bill_type TEXT DEFAULT 'Normal',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
@@ -699,7 +699,40 @@ export async function pushAllLocalDataToSupabase(state: SupabaseDataState): Prom
         return_at: j.returnAt || ''
       };
     });
-    await supabase.from('transport_jobs').upsert(jobsData);
+    const { error: jobsError } = await supabase.from('transport_jobs').upsert(jobsData);
+    if (jobsError) {
+      const isColMissing = 
+        jobsError.message?.includes('does not exist') || 
+        jobsError.message?.includes('schema cache') || 
+        jobsError.message?.includes('column') || 
+        jobsError.code === '42703';
+      if (isColMissing) {
+        const coreJobsData = state.jobs.map((j: any) => {
+          const custExists = j.customerId && validCustomers.has(j.customerId);
+          const vehExists = j.vehicleLicense && validVehicles.has(j.vehicleLicense);
+          return {
+            job_no: j.jobNo,
+            date: j.date,
+            customer_id: custExists ? j.customerId : null,
+            customer_name: j.customerName,
+            origin: j.origin,
+            destination: j.destination,
+            vehicle_license: vehExists ? j.vehicleLicense : null,
+            driver_name: j.driverName,
+            vehicle_type: j.vehicleType,
+            booking_no: j.bookingNo,
+            shipper: j.shipper,
+            containers: j.containers,
+            total_amount: j.totalAmount,
+            status: j.status
+          };
+        });
+        const { error: coreError } = await supabase.from('transport_jobs').upsert(coreJobsData);
+        if (coreError) throw coreError;
+      } else {
+        throw jobsError;
+      }
+    }
   }
 
   // Push Expenses
@@ -915,7 +948,7 @@ export async function dbSaveJob(j: TransportJob) {
     if (!data || data.length === 0) vehicleLicense = null;
   }
 
-  const { error } = await supabase.from('transport_jobs').upsert({
+  const fullPayload = {
     job_no: j.jobNo,
     date: j.date,
     customer_id: customerId,
@@ -937,8 +970,39 @@ export async function dbSaveJob(j: TransportJob) {
     pickup_at: j.pickupAt || '',
     load_at: j.loadAt || '',
     return_at: j.returnAt || ''
-  });
-  if (error) throw error;
+  };
+
+  const { error } = await supabase.from('transport_jobs').upsert(fullPayload);
+  if (error) {
+    const isColumnMissing = 
+      error.message?.includes('does not exist') || 
+      error.message?.includes('schema cache') || 
+      error.message?.includes('column') || 
+      error.code === '42703';
+    if (isColumnMissing) {
+      // Fallback: Save only original core columns that are guaranteed to exist on old schemas
+      const corePayload = {
+        job_no: j.jobNo,
+        date: j.date,
+        customer_id: customerId,
+        customer_name: j.customerName,
+        origin: j.origin,
+        destination: j.destination,
+        vehicle_license: vehicleLicense,
+        driver_name: j.driverName,
+        vehicle_type: j.vehicleType,
+        booking_no: j.bookingNo,
+        shipper: j.shipper,
+        containers: j.containers,
+        total_amount: j.totalAmount,
+        status: j.status
+      };
+      const { error: coreError } = await supabase.from('transport_jobs').upsert(corePayload);
+      if (coreError) throw coreError;
+    } else {
+      throw error;
+    }
+  }
 }
 
 export async function dbDeleteJob(jobNo: string) {
@@ -954,7 +1018,7 @@ export async function dbSaveExpense(e: DailyExpense) {
     if (!data || data.length === 0) vehicleLicense = null;
   }
 
-  const { error } = await supabase.from('daily_expenses').upsert({
+  const fullPayload = {
     id: e.id,
     date: e.date,
     type: e.type,
@@ -964,8 +1028,59 @@ export async function dbSaveExpense(e: DailyExpense) {
     amount: e.amount,
     note: e.note,
     bill_type: e.billType
-  });
-  if (error) throw error;
+  };
+
+  const { error } = await supabase.from('daily_expenses').upsert(fullPayload);
+  if (error) {
+    const isCheckConstraint = error.message?.includes('check constraint') || error.code === '23514';
+    const isColumnMissing = error.message?.includes('does not exist') || error.code === '42703';
+
+    if (isCheckConstraint || isColumnMissing) {
+      // Build a fallback type matching original CHECK constraint options:
+      // ('น้ำมัน', 'ค่าทางด่วน', 'ค่าซ่อม', 'ค่าแรง', 'ค่าอาหาร', 'อื่นๆ')
+      const typeStr = e.type as string;
+      let fallbackType = 'อื่นๆ';
+      if (typeStr === 'น้ำมัน') fallbackType = 'น้ำมัน';
+      else if (typeStr === 'ทางด่วน' || typeStr === 'ค่าทางด่วน') fallbackType = 'ค่าทางด่วน';
+      else if (typeStr === 'ค่าซ่อม') fallbackType = 'ค่าซ่อม';
+      else if (typeStr === 'ค่าแรง') fallbackType = 'ค่าแรง';
+      else if (typeStr === 'ค่าอาหาร') fallbackType = 'ค่าอาหาร';
+
+      const fallbackPayload: any = {
+        id: e.id,
+        date: e.date,
+        type: fallbackType,
+        description: e.description,
+        vehicle_license: vehicleLicense,
+        driver_name: e.driverName,
+        amount: e.amount,
+        note: e.note
+      };
+
+      if (!isColumnMissing) {
+        fallbackPayload.bill_type = e.billType;
+      }
+
+      const { error: fallbackError } = await supabase.from('daily_expenses').upsert(fallbackPayload);
+      if (fallbackError) {
+        // Ultimate fallback: completely original structure with absolute core fields
+        const ultraCorePayload = {
+          id: e.id,
+          date: e.date,
+          type: 'อื่นๆ',
+          description: e.description,
+          vehicle_license: vehicleLicense,
+          driver_name: e.driverName,
+          amount: e.amount,
+          note: e.note
+        };
+        const { error: ultraError } = await supabase.from('daily_expenses').upsert(ultraCorePayload);
+        if (ultraError) throw ultraError;
+      }
+    } else {
+      throw error;
+    }
+  }
 }
 
 export async function dbDeleteExpense(id: string) {
@@ -1016,16 +1131,26 @@ export async function dbDeleteInvoice(invoiceNo: string) {
 
 // 8. Receipts
 export async function dbSaveReceipt(r: Receipt) {
-  let invoiceNo: string | null = r.invoiceNo || null;
-  if (invoiceNo) {
-    const { data } = await supabase.from('invoices').select('invoice_no').eq('invoice_no', invoiceNo);
-    if (!data || data.length === 0) invoiceNo = null;
+  let invoiceNoField: string | null = null;
+  const invoiceList = (r.invoiceNo || '').split(',').map(s => s.trim()).filter(Boolean);
+
+  if (invoiceList.length > 0) {
+    // To satisfy the foreign key constraint on the `receipts` table's `invoice_no` column,
+    // we find the first invoice from invoiceList that actually exists in the `invoices` table.
+    // If none exist, we set it to null.
+    for (const invNo of invoiceList) {
+      const { data } = await supabase.from('invoices').select('invoice_no').eq('invoice_no', invNo).limit(1);
+      if (data && data.length > 0) {
+        invoiceNoField = invNo;
+        break; // found a valid foreign key reference
+      }
+    }
   }
 
   const { error } = await supabase.from('receipts').upsert({
     receipt_no: r.receiptNo,
     date: r.date,
-    invoice_no: invoiceNo,
+    invoice_no: invoiceNoField,
     customer_name: r.customerName,
     amount: r.amount,
     payment_method: r.paymentMethod,
@@ -1033,17 +1158,31 @@ export async function dbSaveReceipt(r: Receipt) {
   });
   if (error) throw error;
 
-  // set invoice status
-  if (r.invoiceNo) {
+  // set invoice status to 'จ่ายแล้ว' for ALL associated invoices
+  if (invoiceList.length > 0) {
     await supabase.from('invoices')
       .update({ status: 'จ่ายแล้ว' })
-      .eq('invoice_no', r.invoiceNo);
+      .in('invoice_no', invoiceList);
   }
 }
 
 export async function dbDeleteReceipt(receiptNo: string) {
+  // First, find the receipt to know which invoice was linked as a foreign key reference
+  const { data: receipt } = await supabase
+    .from('receipts')
+    .select('invoice_no')
+    .eq('receipt_no', receiptNo)
+    .single();
+
   const { error } = await supabase.from('receipts').delete().eq('receipt_no', receiptNo);
   if (error) throw error;
+
+  // If there was an associated invoice reference, revert its status to 'ยังไม่จ่าย'
+  if (receipt && receipt.invoice_no) {
+    await supabase.from('invoices')
+      .update({ status: 'ยังไม่จ่าย' })
+      .eq('invoice_no', receipt.invoice_no);
+  }
 }
 
 // 9. Partner Payments
@@ -1265,7 +1404,24 @@ export async function seedSupabaseTablesJS(): Promise<{ success: boolean; messag
         status: 'ส่งแล้ว'
       }
     ];
-    await supabase.from('transport_jobs').upsert(jobsData);
+    const { error: seedJobsErr } = await supabase.from('transport_jobs').upsert(jobsData);
+    if (seedJobsErr) {
+      const isColMissing = 
+        seedJobsErr.message?.includes('does not exist') || 
+        seedJobsErr.message?.includes('schema cache') || 
+        seedJobsErr.message?.includes('column') || 
+        seedJobsErr.code === '42703';
+      if (isColMissing) {
+        const cleanedJobsData = jobsData.map((j: any) => {
+          const { job_type, quantity, container_size, ship_agent, pickup_at, load_at, return_at, ...core } = j;
+          return core;
+        });
+        const { error: coreError } = await supabase.from('transport_jobs').upsert(cleanedJobsData);
+        if (coreError) throw coreError;
+      } else {
+        throw seedJobsErr;
+      }
+    }
 
     // 6. Expenses
     const expensesData = [

@@ -18,6 +18,73 @@ function formatInvoiceDate(dateStr: string) {
   return dateStr;
 }
 
+export function calculateInvoiceTotals(invoiceType: 'Transport' | 'Advance', containers: ContainerDetail[], advanceItems: AdvanceItem[]) {
+  let subtotal = 0;
+  let withholdingTax = 0;
+  let vatAmount = 0;
+  let grandTotal = 0;
+
+  if (invoiceType === 'Transport') {
+    let transportSum = 0;
+    let overtimeSum = 0;
+    let xraySum = 0;
+    let otherSum = 0;
+
+    containers.forEach(c => {
+      transportSum += c.transportation || 0;
+      
+      let hasOvertimeInExpenses = false;
+      let hasXrayInExpenses = false;
+      if (c.expenses) {
+        hasOvertimeInExpenses = c.expenses.some(exp => exp.name === 'Overtime');
+        hasXrayInExpenses = c.expenses.some(exp => exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey');
+      }
+
+      // legacy fields
+      otherSum += (c.portCharge || 0) + (c.containerHandling || 0) + (c.liftOnOff || 0);
+      if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
+        const name = c.otherExpenseName || '';
+        if (name === 'Overtime') {
+          if (!hasOvertimeInExpenses) {
+            overtimeSum += c.otherExpenseAmount;
+          }
+        } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
+          if (!hasXrayInExpenses) {
+            xraySum += c.otherExpenseAmount;
+          }
+        } else {
+          otherSum += c.otherExpenseAmount;
+        }
+      }
+
+      if (c.expenses) {
+        c.expenses.forEach(exp => {
+          const name = exp.name || '';
+          if (name === 'Overtime') {
+            overtimeSum += exp.amount || 0;
+          } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
+            xraySum += exp.amount || 0;
+          } else {
+            otherSum += exp.amount || 0;
+          }
+        });
+      }
+    });
+
+    subtotal = transportSum + overtimeSum + xraySum + otherSum;
+    withholdingTax = Math.round((transportSum + overtimeSum + xraySum) * 0.01 * 100) / 100;
+    vatAmount = 0;
+    grandTotal = subtotal - withholdingTax;
+  } else {
+    subtotal = advanceItems.reduce((sum, item) => sum + item.amount, 0);
+    withholdingTax = 0;
+    vatAmount = Math.round(subtotal * 0.07 * 100) / 100;
+    grandTotal = subtotal + vatAmount;
+  }
+
+  return { subtotal, withholdingTax, vatAmount, grandTotal };
+}
+
 interface InvoicesViewProps {
   invoices: Invoice[];
   customers: Customer[];
@@ -117,22 +184,11 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
     let vatAmount = 0;
     let grandTotal = 0;
 
-    if (invoiceType === 'Transport') {
-      // TRANSPORT: 1% Withholding Tax, NO VAT
-      subtotal = containers.reduce((sum, c) => {
-        const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
-        return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
-      }, 0);
-      withholdingTax = Math.round(subtotal * 0.01 * 100) / 100;
-      vatAmount = 0;
-      grandTotal = subtotal - withholdingTax;
-    } else {
-      // ADVANCE: 7% VAT, NO Withholding Tax
-      subtotal = advanceItems.reduce((sum, item) => sum + item.amount, 0);
-      withholdingTax = 0;
-      vatAmount = Math.round(subtotal * 0.07 * 100) / 100;
-      grandTotal = subtotal + vatAmount;
-    }
+    const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems);
+    subtotal = totals.subtotal;
+    withholdingTax = totals.withholdingTax;
+    vatAmount = totals.vatAmount;
+    grandTotal = totals.grandTotal;
 
     const totalText = arabicToThaiBaht(grandTotal);
 
@@ -502,74 +558,143 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                           </div>
                         </div>
 
-                        {/* Overtime (Locked Other Expense) - Orange Highlighted Area */}
-                        <div className="border border-orange-300 bg-orange-50/40 p-3.5 rounded-xl space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-black text-orange-850 flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
-                              ค่าบริการล่วงเวลา / อื่นๆ (Overtime - ล็อกหักภาษี ณ ที่จ่าย 1% อัตโนมัติ)
+                        {/* Dynamic Expenses for Container - dropdown list of other charges */}
+                        <div className="border border-slate-200/85 bg-slate-50/50 p-4 rounded-xl space-y-3">
+                          <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                            <span className="text-xs font-bold text-slate-700 block">
+                              รายการค่าบริการ / ค่าใช้จ่ายอื่นๆ เพิ่มเติม
                             </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const list = [...containers];
+                                if (!list[idx].expenses) {
+                                  list[idx].expenses = [];
+                                }
+                                list[idx].expenses.push({ name: 'Life on / Life off', amount: 0, qty: 1, rate: 0 });
+                                setContainers(list);
+                              }}
+                              className="text-[10px] bg-white hover:bg-slate-50 text-slate-700 font-bold py-1 px-2.5 rounded-md border border-slate-300 transition-colors flex items-center gap-1 shadow-sm"
+                            >
+                              + เพิ่มรายการค่าใช้จ่าย / บริการอื่นๆ
+                            </button>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white/70 p-3 rounded-lg border border-orange-100/50">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-600 block">1. จำนวน (QTY)</label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="เช่น 1"
-                                value={c.overtimeQty || ''}
-                                onChange={(e) => {
-                                  const list = [...containers];
-                                  const qty = parseFloat(e.target.value) || 0;
-                                  list[idx].overtimeQty = qty;
-                                  const rate = list[idx].overtimeRate || 0;
-                                  list[idx].otherExpenseAmount = Math.round(qty * rate * 100) / 100;
-                                  list[idx].otherExpenseName = 'Overtime';
-                                  setContainers(list);
-                                }}
-                                className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded p-2 focus:border-orange-400 outline-none text-right font-bold"
-                              />
+
+                          {(!c.expenses || c.expenses.length === 0) ? (
+                            <div className="text-[10px] text-slate-400 italic text-center py-2 bg-white/50 border border-dashed border-slate-200 rounded-lg">
+                              ไม่มีรายการค่าใช้จ่ายเพิ่มเติมในตู้นี้ (กดปุ่ม "+ เพิ่มรายการค่าใช้จ่าย / บริการอื่นๆ" เพื่อระบุเพิ่มเติม)
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-600 block">2. หน่วยละ (Rate)</label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="เช่น 200"
-                                value={c.overtimeRate || ''}
-                                onChange={(e) => {
-                                  const list = [...containers];
-                                  const rate = parseFloat(e.target.value) || 0;
-                                  list[idx].overtimeRate = rate;
-                                  const qty = list[idx].overtimeQty || 0;
-                                  list[idx].otherExpenseAmount = Math.round(qty * rate * 100) / 100;
-                                  list[idx].otherExpenseName = 'Overtime';
-                                  setContainers(list);
-                                }}
-                                className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded p-2 focus:border-orange-400 outline-none text-right font-bold"
-                              />
+                          ) : (
+                            <div className="space-y-3">
+                              {c.expenses.map((exp, expIdx) => {
+                                const isOvertime = exp.name === 'Overtime';
+                                const isXray = exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey';
+                                return (
+                                  <div key={expIdx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-white p-3 rounded-lg border border-slate-200 shadow-xs items-end">
+                                    {/* Select Dropdown for Expense Name */}
+                                    <div className="sm:col-span-5 space-y-0.5 text-left">
+                                      <label className="text-[9px] font-bold text-slate-500 block">เลือกประเภทค่าบริการ/ค่าใช้จ่าย</label>
+                                      <select
+                                        value={exp.name}
+                                        onChange={(e) => {
+                                          const list = [...containers];
+                                          const item = list[idx].expenses![expIdx];
+                                          item.name = e.target.value;
+                                          setContainers(list);
+                                        }}
+                                        className="w-full text-xs text-slate-800 border border-slate-250 rounded p-1.5 outline-none font-semibold focus:border-indigo-500"
+                                      >
+                                        <option value="Life on / Life off">Life on / Life off</option>
+                                        <option value="Port Charge">Port Charge</option>
+                                        <option value="Gate Charge">Gate Charge</option>
+                                        <option value="Shore">Shore</option>
+                                        <option value="Drop">Drop</option>
+                                        <option value="Overtime">Overtime</option>
+                                        <option value="X-ray">X-ray (ค่าเอ็กซ์เรย์)</option>
+                                        <option value="Container Handling">Container Handling</option>
+                                        <option value="ADMISSION FEE">ADMISSION FEE</option>
+                                        <option value="Other">Other (อื่นๆ)</option>
+                                      </select>
+                                    </div>
+
+                                    {/* QTY input */}
+                                    <div className="sm:col-span-2 space-y-0.5 text-left">
+                                      <label className="text-[9px] font-bold text-slate-500 block text-right">จำนวน (QTY)</label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={exp.qty !== undefined ? exp.qty : 1}
+                                        onChange={(e) => {
+                                          const list = [...containers];
+                                          const item = list[idx].expenses![expIdx];
+                                          const q = parseFloat(e.target.value) || 0;
+                                          item.qty = q;
+                                          item.amount = Math.round(q * (item.rate || 0) * 100) / 100;
+                                          setContainers(list);
+                                        }}
+                                        className="w-full text-xs font-mono border border-slate-250 rounded p-1.5 outline-none text-right font-bold"
+                                        placeholder="1"
+                                      />
+                                    </div>
+
+                                    {/* Rate input */}
+                                    <div className="sm:col-span-2 space-y-0.5 text-left">
+                                      <label className="text-[9px] font-bold text-slate-500 block text-right">หน่วยละ (Rate)</label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={exp.rate !== undefined ? exp.rate : ''}
+                                        onChange={(e) => {
+                                          const list = [...containers];
+                                          const item = list[idx].expenses![expIdx];
+                                          const r = parseFloat(e.target.value) || 0;
+                                          item.rate = r;
+                                          item.amount = Math.round((item.qty !== undefined ? item.qty : 1) * r * 100) / 100;
+                                          setContainers(list);
+                                        }}
+                                        className="w-full text-xs font-mono border border-slate-250 rounded p-1.5 outline-none text-right font-bold"
+                                        placeholder="0.00"
+                                      />
+                                    </div>
+
+                                    {/* Net display */}
+                                    <div className="sm:col-span-2 text-right space-y-0.5 text-left">
+                                      <span className="text-[9px] font-bold text-slate-500 block text-right">จำนวนเงิน</span>
+                                      <span className="text-xs font-mono font-bold text-slate-900 block bg-slate-50 border border-slate-200 p-1.5 rounded text-right min-h-[32px] flex items-center justify-end">
+                                        {formatCurrency(exp.amount || 0)}
+                                      </span>
+                                    </div>
+
+                                    {/* Action button */}
+                                    <div className="sm:col-span-1 flex justify-center pb-0.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const list = [...containers];
+                                          list[idx].expenses = list[idx].expenses!.filter((_, i) => i !== expIdx);
+                                          setContainers(list);
+                                        }}
+                                        className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
+                                        title="ลบรายการนี้"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
+
+                                    {/* WHT Indicator row if Overtime or X-ray */}
+                                    {(isOvertime || isXray) && (
+                                      <div className="sm:col-span-12 mt-1 px-2 py-1 bg-red-50 rounded border border-red-100 text-[10px] text-red-600 font-mono font-bold flex justify-between items-center">
+                                        <span>** หัก ณ ที่จ่าย 1% อัตโนมัติ ({exp.name})</span>
+                                        <span>-{formatCurrency(Math.round((exp.amount || 0) * 0.01 * 100) / 100)} บ.</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-705 block">3. จำนวนสุทธิ</label>
-                              <input
-                                type="text"
-                                readOnly
-                                placeholder="0.00"
-                                value={c.otherExpenseAmount ? (c.otherExpenseAmount).toFixed(2) : '0.00'}
-                                className="w-full text-xs font-mono bg-slate-50 text-orange-950 border border-slate-200 rounded p-2 outline-none text-right font-black"
-                              />
-                            </div>
-                            <div className="space-y-1 flex flex-col justify-end">
-                              <div className="text-right p-1.5 px-3 bg-red-50 rounded border border-red-100/80 text-[10px] text-red-900 font-mono font-bold leading-tight flex flex-col justify-center h-9">
-                                <div>หัก ณ ที่จ่าย 1%</div>
-                                <div className="text-[11px] font-extrabold text-red-650">
-                                  -{c.otherExpenseAmount ? (c.otherExpenseAmount * 0.01).toFixed(2) : '0.00'} บ.
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                     ))
@@ -629,62 +754,42 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             )}
 
             {/* Calculations Summary Section */}
-            <div className="bg-slate-950 text-white p-5 rounded-xl border border-slate-800 flex justify-end">
-              <div className="w-full sm:w-80 space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">ค่าใช้จ่ายรวม/เบิกเงินสุทธิ:</span>
-                  <span className="font-mono text-slate-200">
-                    {formatCurrency(
-                      invoiceType === 'Transport' 
-                        ? containers.reduce((sum, c) => {
-                            const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
-                            return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
-                          }, 0)
-                        : advanceItems.reduce((sum, item) => sum + item.amount, 0)
+            {(() => {
+              const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems);
+              return (
+                <div className="bg-slate-950 text-white p-5 rounded-xl border border-slate-800 flex justify-end">
+                  <div className="w-full sm:w-80 space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">ค่าใช้จ่ายรวม/เบิกเงินสุทธิ:</span>
+                      <span className="font-mono text-slate-200">
+                        {formatCurrency(totals.subtotal)}
+                      </span>
+                    </div>
+                    {invoiceType === 'Transport' ? (
+                      <div className="flex justify-between text-red-400 font-semibold border-b border-slate-800 pb-2">
+                        <span>หักภาษี ณ ที่จ่าย 1% สะสม:</span>
+                        <span className="font-mono">
+                          -{formatCurrency(totals.withholdingTax)}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-emerald-400 font-semibold border-b border-slate-800 pb-2">
+                        <span>บวกภาษีมูลค่าเพิ่ม VAT 7%:</span>
+                        <span className="font-mono">
+                          +{formatCurrency(totals.vatAmount)}
+                        </span>
+                      </div>
                     )}
-                  </span>
-                </div>
-                {invoiceType === 'Transport' ? (
-                  <div className="flex justify-between text-red-400 font-semibold border-b border-slate-800 pb-2">
-                    <span>หักภาษี ณ ที่จ่าย 1% สะสม:</span>
-                    <span className="font-mono">
-                      -{formatCurrency(
-                        Math.round(containers.reduce((sum, c) => {
-                          const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
-                          return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
-                        }, 0) * 0.01 * 100) / 100
-                      )}
-                    </span>
+                    <div className="flex justify-between text-sm pt-2 text-white font-extrabold font-mono font-bold">
+                      <span>เงินรวมทำจ่ายสุทธิ:</span>
+                      <span className="text-emerald-400">
+                        {formatCurrency(totals.grandTotal)}
+                      </span>
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex justify-between text-emerald-400 font-semibold border-b border-slate-800 pb-2">
-                    <span>บวกภาษีมูลค่าเพิ่ม VAT 7%:</span>
-                    <span className="font-mono">
-                      +{formatCurrency(
-                        Math.round(advanceItems.reduce((sum, item) => sum + item.amount, 0) * 0.07 * 100) / 100
-                      )}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm pt-2 text-white font-extrabold font-mono">
-                  <span>เงินรวมทำจ่ายสุทธิสุทธิ:</span>
-                  <span className="text-emerald-400">
-                    {formatCurrency(
-                      invoiceType === 'Transport'
-                        ? (() => {
-                            const sub = containers.reduce((sum, c) => {
-                              const expensesSum = (c.expenses || []).reduce((esum, exp) => esum + (exp.amount || 0), 0);
-                              return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
-                            }, 0);
-                            const tax = Math.round(sub * 0.01 * 100) / 100;
-                            return sub - tax;
-                          })()
-                        : advanceItems.reduce((sum, item) => sum + item.amount, 0) + Math.round(advanceItems.reduce((sum, item) => sum + item.amount, 0) * 0.07 * 100) / 100
-                    )}
-                  </span>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Cancel & Save Form Buttons */}
             <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
@@ -898,14 +1003,35 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                       if (c.liftOnOff > 0) {
                         charges.push({ name: 'Life on / Life off', amount: c.liftOnOff, qty: 1, rate: c.liftOnOff });
                       }
+
+                      let hasOvertimeInExpenses = false;
+                      let hasXrayInExpenses = false;
+                      if (c.expenses) {
+                        hasOvertimeInExpenses = c.expenses.some(exp => exp.name === 'Overtime');
+                        hasXrayInExpenses = c.expenses.some(exp => exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey');
+                      }
+
                       if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
-                        const isOvertime = c.otherExpenseName === 'Overtime';
-                        charges.push({ 
-                          name: c.otherExpenseName || 'Other Charge / ค่าบริการอื่นๆ', 
-                          amount: c.otherExpenseAmount,
-                          qty: isOvertime ? (c.overtimeQty || 1) : 1,
-                          rate: isOvertime ? (c.overtimeRate || c.otherExpenseAmount) : c.otherExpenseAmount
-                        });
+                        const name = c.otherExpenseName || '';
+                        const isOvertime = name === 'Overtime';
+                        const isXray = name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey';
+
+                        let shouldPush = true;
+                        if (isOvertime && hasOvertimeInExpenses) {
+                          shouldPush = false;
+                        }
+                        if (isXray && hasXrayInExpenses) {
+                          shouldPush = false;
+                        }
+
+                        if (shouldPush) {
+                          charges.push({ 
+                            name: c.otherExpenseName || 'Other Charge / ค่าบริการอื่นๆ', 
+                            amount: c.otherExpenseAmount,
+                            qty: isOvertime ? (c.overtimeQty || 1) : 1,
+                            rate: isOvertime ? (c.overtimeRate || c.otherExpenseAmount) : c.otherExpenseAmount
+                          });
+                        }
                       }
                       if (c.expenses) {
                         c.expenses.forEach(exp => {

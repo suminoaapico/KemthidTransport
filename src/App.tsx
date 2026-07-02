@@ -142,8 +142,9 @@ export default function App() {
     try {
       await saveFn(item);
     } catch (err: any) {
-      console.error(`Supabase Sync Error [${tableName}]:`, err);
-      if (err.message && (err.message.includes('not found') || err.message.includes('does not exist'))) {
+      const errMsg = err?.message || err?.details || JSON.stringify(err) || String(err);
+      console.error(`Supabase Sync Error [${tableName}]: ${errMsg}`, err);
+      if (errMsg.includes('not found') || errMsg.includes('does not exist')) {
         setSupabaseStatus('no_tables');
         setSupabaseMessage(`ตรวจพบตาราง ${tableName} ไม่มีอยู่ในฐานข้อมูลกรุณาสร้าง SQL Tables`);
       }
@@ -154,8 +155,9 @@ export default function App() {
     try {
       await deleteFn(id);
     } catch (err: any) {
-      console.error(`Supabase Sync Delete Error [${tableName}]:`, err);
-      if (err.message && (err.message.includes('not found') || err.message.includes('does not exist'))) {
+      const errMsg = err?.message || err?.details || JSON.stringify(err) || String(err);
+      console.error(`Supabase Sync Delete Error [${tableName}]: ${errMsg}`, err);
+      if (errMsg.includes('not found') || errMsg.includes('does not exist')) {
         setSupabaseStatus('no_tables');
         setSupabaseMessage(`ตรวจพบตาราง ${tableName} ไม่มีอยู่ในฐานข้อมูลกรุณาสร้าง SQL Tables`);
       }
@@ -830,9 +832,10 @@ export default function App() {
                   list.push(receipt);
                 }
 
-                // Update original invoice status to 'Paid' / 'จ่ายแล้ว'
+                // Update original invoice statuses to 'Paid' / 'จ่ายแล้ว'
+                const invoiceNosToPay = receipt.invoiceNo.split(',').map(s => s.trim()).filter(Boolean);
                 const updatedInv = prev.invoices.map(inv => {
-                  if (inv.invoiceNo === receipt.invoiceNo) {
+                  if (invoiceNosToPay.includes(inv.invoiceNo)) {
                     return { ...inv, status: 'จ่ายแล้ว' as const };
                   }
                   return inv;
@@ -843,11 +846,36 @@ export default function App() {
               handleSupabaseSave(dbSaveReceipt, receipt, 'ใบเสร็จรับเงิน (receipts)');
             }}
             onDeleteReceipt={(recNo) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                receipts: prev.receipts.filter(r => r.receiptNo !== recNo)
-              }));
-              handleSupabaseDelete(dbDeleteReceipt, recNo, 'ใบเสร็จรับเงิน (receipts)');
+              const rec = state.receipts.find(r => r.receiptNo === recNo);
+              const invoiceNos = rec ? rec.invoiceNo.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+              updateStateAndPersist(prev => {
+                const deletedReceipt = prev.receipts.find(r => r.receiptNo === recNo);
+                let updatedInv = prev.invoices;
+                if (deletedReceipt) {
+                  const invoiceNosToUnpay = deletedReceipt.invoiceNo.split(',').map(s => s.trim()).filter(Boolean);
+                  updatedInv = prev.invoices.map(inv => {
+                    if (invoiceNosToUnpay.includes(inv.invoiceNo)) {
+                      return { ...inv, status: 'ยังไม่จ่าย' as const };
+                    }
+                    return inv;
+                  });
+                }
+                return {
+                  ...prev,
+                  receipts: prev.receipts.filter(r => r.receiptNo !== recNo),
+                  invoices: updatedInv
+                };
+              });
+
+              handleSupabaseDelete(async (id) => {
+                await dbDeleteReceipt(id);
+                if (invoiceNos.length > 0) {
+                  await supabase.from('invoices')
+                    .update({ status: 'ยังไม่จ่าย' })
+                    .in('invoice_no', invoiceNos);
+                }
+              }, recNo, 'ใบเสร็จรับเงิน (receipts)');
             }}
           />
         )}

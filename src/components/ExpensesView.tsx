@@ -129,6 +129,15 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
     }
   };
 
+  const handleBillTypeChange = (newBillType: 'Normal' | 'Adv') => {
+    setBillType(newBillType);
+    if (newBillType === 'Normal') {
+      setType('น้ำมัน');
+    } else {
+      setType('Life on / Life off');
+    }
+  };
+
   // Drag-and-drop file upload handlers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -406,20 +415,22 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
         </div>
       </div>
 
-      {/* Add / Edit Expense Modal Dialog */}
+      {/* Modal overlay */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col">
-            <div className="bg-slate-950 text-white p-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl border border-slate-100 flex flex-col">
+            {/* Modal Header */}
+            <div className="bg-slate-950 text-white p-4 px-6 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-xs uppercase font-sans tracking-wider">
-                  {isEditMode ? 'แก้ไขแบบเบิกบันทึกเงินค่าใช้จ่าย' : 'บันทึกคำขอเบิกจ่ายเงินค่าใช้จ่ายรายวัน'}
+                <h3 className="font-extrabold text-sm flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-400" />
+                  {isEditMode ? 'แก้ไขบันทึกคำขอเบิกเงินส่วนตัว / รถบริษัท-ร่วม' : 'บันทึกคำขอเบิกเงินจ่ายค่าใช้จ่ายรายวัน'}
                 </h3>
-                <p className="text-slate-400 text-xs">แยกหมวดการเบิกจ่าย (Normal และ Advance) พร้อมแนบใบเสร็จสลิป</p>
+                <p className="text-[10px] text-slate-400 font-medium">แยกหมวดการเบิกจ่าย (Normal และ Advance) พร้อมแนบใบเสร็จสลิป</p>
               </div>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-white bg-slate-850 p-1.5 rounded-lg transition-colors"
+                className="text-slate-400 hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -428,96 +439,100 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1 sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 block">เลขงานวิ่งอ้างอิง (Job No. Reference)</label>
-                  {isEditMode ? (
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        value={selectedJobNo || 'ทั่วไป / ไม่มีงานวิ่ง'}
-                        className="flex-1 text-xs bg-slate-100 font-mono text-slate-650 border border-slate-200 rounded-lg p-2.5 outline-none font-bold"
-                        readOnly
-                      />
-                      <input 
-                        type="text" 
-                        value={id.includes('/') ? id.split('/')[1] : id}
-                        className="w-1/3 text-xs bg-slate-100 font-mono text-slate-400 border border-slate-200 rounded-lg p-2.5 outline-none text-center font-semibold"
-                        readOnly
-                        title="เลขใบสำคัญการทำเบิก"
-                      />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700 block">เลขงานวิ่งอ้างอิง (Job No. Reference)</label>
+                      {isEditMode ? (
+                        <input 
+                          type="text" 
+                          value={selectedJobNo || 'ทั่วไป / ไม่มีงานวิ่ง'}
+                          className="w-full text-xs bg-slate-100 font-mono text-slate-650 border border-slate-200 rounded-lg p-2.5 outline-none font-bold"
+                          readOnly
+                        />
+                      ) : (
+                        <select
+                          value={selectedJobNo}
+                          onChange={(e) => handleJobChange(e.target.value)}
+                          className="w-full text-xs text-slate-900 border border-indigo-200 bg-indigo-50/25 font-bold font-mono focus:bg-white focus:border-indigo-500 rounded-lg p-2.5 outline-none"
+                          required
+                        >
+                          <option value="">-- เลือกเลขจ๊อบขนส่งอ้างอิง --</option>
+                          {jobs.map(j => (
+                            <option key={j.jobNo} value={j.jobNo} className="font-mono text-slate-800">
+                              {j.jobNo} - {j.customerName}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
-                  ) : (
-                    <select
-                      value={selectedJobNo}
-                      onChange={(e) => handleJobChange(e.target.value)}
-                      className="w-full text-xs text-slate-900 border border-indigo-200 bg-indigo-50/25 font-bold font-mono focus:bg-white focus:border-indigo-500 rounded-lg p-2.5 outline-none"
-                      required
-                    >
-                      <option value="">-- กรุณาเลือกเลขจ๊อบขนส่งอ้างอิง (คู่ค้า / เส้นทาง) --</option>
-                      {jobs.map(j => (
-                        <option key={j.jobNo} value={j.jobNo} className="font-mono text-slate-800">
-                          {j.jobNo} - {j.customerName} ({j.origin} ➔ {j.destination})
-                        </option>
-                      ))}
-                    </select>
-                  )}
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700 block text-orange-600">เลือกเบอร์ตู้คอนเทนเนอร์</label>
+                      {isEditMode ? (
+                        <input 
+                          type="text" 
+                          value={containerNo || 'ทั่วไป / ไม่ระบุตู้'}
+                          className="w-full text-xs bg-slate-100 font-mono text-slate-600 border border-slate-200 rounded-lg p-2.5 outline-none font-bold"
+                          readOnly
+                        />
+                      ) : (
+                        <select
+                          value={containerNo}
+                          onChange={(e) => setContainerNo(e.target.value)}
+                          className="w-full text-xs text-slate-900 border border-orange-200 bg-orange-50/25 font-bold font-mono focus:bg-white focus:border-orange-500 rounded-lg p-2.5 outline-none"
+                          required
+                        >
+                          <option value="">-- เลือกเบอร์ตู้คอนเทนเนอร์ --</option>
+                          {(() => {
+                            const foundJob = jobs.find(j => j.jobNo === selectedJobNo);
+                            if (foundJob && foundJob.containers) {
+                              return foundJob.containers.map(c => (
+                                <option key={c.containerNo} value={c.containerNo} className="font-mono">
+                                  {c.containerNo}
+                                </option>
+                              ));
+                            }
+                            return null;
+                          })()}
+                        </select>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Container No Selector - "ช่องต่อจาก job no. ตรงสีส้มขอเป็นช่องเลือกเบอร์ตู้เพื่อคีย์เบิกค่าใช่จ่ายค่ะ" */}
-                {selectedJobNo && (
-                  <div className="space-y-1 sm:col-span-2">
-                    <label className="text-xs font-bold text-slate-700 block flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
-                      เลือกหมายเลขตู้คอนเทนเนอร์เพื่อคีย์เบิก (Container No.)
-                    </label>
-                    <select
-                      value={containerNo}
-                      onChange={(e) => setContainerNo(e.target.value)}
-                      className="w-full text-xs font-mono font-extrabold text-slate-900 border border-slate-200 bg-white focus:border-indigo-500 rounded-lg p-2.5 outline-none"
-                      required
-                    >
-                      <option value="">-- กรุณาเลือกหมายเลขตู้คอนเทนเนอร์ --</option>
-                      {(jobs.find(j => j.jobNo === selectedJobNo)?.containers || []).map(c => (
-                        <option key={c.containerNo} value={c.containerNo} className="font-mono">
-                          {c.containerNo || 'ไม่ระบุ'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 block">วันที่จ่ายเงิน</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">วันที่จ่ายเงิน / บันทึกจ่าย</label>
                   <input 
                     type="date" 
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none"
+                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
                     required
                   />
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 block">ประเภทกลุ่มรถการทำจ่าย (Bill Type)</label>
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <label className={`border rounded-lg p-2.5 flex flex-col items-center justify-center gap-1 text-xs font-bold cursor-pointer transition-all ${billType === 'Normal' ? 'bg-amber-50 border-amber-300 text-amber-850 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className={`border rounded-lg p-2 flex flex-col items-center justify-center gap-0.5 text-xs font-bold cursor-pointer transition-all ${billType === 'Normal' ? 'bg-amber-50 border-amber-300 text-amber-850 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                       <input 
                         type="radio" 
                         name="billType" 
                         value="Normal" 
                         checked={billType === 'Normal'} 
-                        onChange={() => setBillType('Normal')}
+                        onChange={() => handleBillTypeChange('Normal')}
                         className="hidden"
                       />
                       <span className="text-[11px] font-extrabold">รถบริษัท</span>
                       <span className="text-[9px] font-normal text-slate-400 font-mono">Normal (หลัก)</span>
                     </label>
-                    <label className={`border rounded-lg p-2.5 flex flex-col items-center justify-center gap-1 text-xs font-bold cursor-pointer transition-all ${billType === 'Adv' ? 'bg-emerald-50 border-emerald-300 text-emerald-850 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <label className={`border rounded-lg p-2 flex flex-col items-center justify-center gap-0.5 text-xs font-bold cursor-pointer transition-all ${billType === 'Adv' ? 'bg-emerald-50 border-emerald-300 text-emerald-850 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                       <input 
                         type="radio" 
                         name="billType" 
                         value="Adv" 
                         checked={billType === 'Adv'} 
-                        onChange={() => setBillType('Adv')}
+                        onChange={() => handleBillTypeChange('Adv')}
                         className="hidden"
                       />
                       <span className="text-[11px] font-extrabold">รถร่วม</span>
@@ -531,15 +546,25 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value as any)}
-                    className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none"
+                    className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none font-bold focus:border-slate-400"
                     required
                   >
-                    <option value="น้ำมัน">น้ำมัน</option>
-                    <option value="ค่าทางด่วน">ค่าทางด่วน</option>
-                    <option value="ค่าซ่อม">ค่าซ่อม</option>
-                    <option value="ค่าแรง">ค่าแรง</option>
-                    <option value="ค่าอาหาร">ค่าอาหาร</option>
-                    <option value="อื่นๆ">อื่นๆ</option>
+                    {billType === 'Normal' ? (
+                      <>
+                        <option value="น้ำมัน">น้ำมัน</option>
+                        <option value="advance รถร่วม">advance รถร่วม</option>
+                        <option value="ทางด่วน">ทางด่วน</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Life on / Life off">Life on / Life off</option>
+                        <option value="Port Charge">Port Charge</option>
+                        <option value="Shore">Shore</option>
+                        <option value="Drop">Drop</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -548,7 +573,7 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
                   <select
                     value={vehicleLicense}
                     onChange={(e) => setVehicleLicense(e.target.value)}
-                    className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none"
+                    className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
                     required
                   >
                     {vehicles.map(v => (
@@ -557,12 +582,12 @@ export function ExpensesView({ expenses, drivers, vehicles, jobs, onSaveExpense,
                   </select>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 block">คนขับ/พนักงานผู้ขอเบิกเงิน</label>
                   <select
                     value={driverName}
                     onChange={(e) => setDriverName(e.target.value)}
-                    className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none"
+                    className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
                     required
                   >
                     {drivers.map(d => (
