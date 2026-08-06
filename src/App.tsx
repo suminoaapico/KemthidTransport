@@ -142,11 +142,11 @@ export default function App() {
     try {
       await saveFn(item);
     } catch (err: any) {
-      const errMsg = err?.message || err?.details || JSON.stringify(err) || String(err);
+      const errMsg = err?.message || (typeof err?.details === 'string' ? err.details : null) || err?.hint || (typeof err === 'string' ? err : JSON.stringify(err));
       console.error(`Supabase Sync Error [${tableName}]: ${errMsg}`, err);
-      if (errMsg.includes('not found') || errMsg.includes('does not exist')) {
+      if (typeof errMsg === 'string' && (errMsg.includes('not found') || errMsg.includes('does not exist') || errMsg.includes('PGRST125'))) {
         setSupabaseStatus('no_tables');
-        setSupabaseMessage(`ตรวจพบตาราง ${tableName} ไม่มีอยู่ในฐานข้อมูลกรุณาสร้าง SQL Tables`);
+        setSupabaseMessage(`ตรวจพบตาราง ${tableName} ไม่มีอยู่ในฐานข้อมูล หรือยังไม่ได้รัน SQL Schema ใน Supabase`);
       }
     }
   };
@@ -155,11 +155,11 @@ export default function App() {
     try {
       await deleteFn(id);
     } catch (err: any) {
-      const errMsg = err?.message || err?.details || JSON.stringify(err) || String(err);
+      const errMsg = err?.message || (typeof err?.details === 'string' ? err.details : null) || err?.hint || (typeof err === 'string' ? err : JSON.stringify(err));
       console.error(`Supabase Sync Delete Error [${tableName}]: ${errMsg}`, err);
-      if (errMsg.includes('not found') || errMsg.includes('does not exist')) {
+      if (typeof errMsg === 'string' && (errMsg.includes('not found') || errMsg.includes('does not exist') || errMsg.includes('PGRST125'))) {
         setSupabaseStatus('no_tables');
-        setSupabaseMessage(`ตรวจพบตาราง ${tableName} ไม่มีอยู่ในฐานข้อมูลกรุณาสร้าง SQL Tables`);
+        setSupabaseMessage(`ตรวจพบตาราง ${tableName} ไม่มีอยู่ในฐานข้อมูล หรือยังไม่ได้รัน SQL Schema ใน Supabase`);
       }
     }
   };

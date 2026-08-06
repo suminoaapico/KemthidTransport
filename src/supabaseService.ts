@@ -5,8 +5,8 @@ import {
   WithholdingTaxRecord, PayrollRecord 
 } from './types';
 
-const SUPABASE_URL = "https://uxdonakrhqhxktrvssxr.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4ZG9uYWtyaHFoeGt0cnZzc3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMzY2NzUsImV4cCI6MjA5NDkxMjY3NX0.lh7MnqP5Y6i3scThWEJ0WZ0Nl3G4dVx21xcchrg9QSo";
+const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || "https://uxdonakrhqhxktrvssxr.supabase.co";
+const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4ZG9uYWtyaHFoeGt0cnZzc3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMzY2NzUsImV4cCI6MjA5NDkxMjY3NX0.lh7MnqP5Y6i3scThWEJ0WZ0Nl3G4dVx21xcchrg9QSo";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -876,7 +876,13 @@ export async function dbSaveDriver(drv: Driver) {
   let vehicleLicense: string | null = drv.vehicleLicense || null;
   if (vehicleLicense) {
     const { data } = await supabase.from('vehicles').select('license_plate').eq('license_plate', vehicleLicense);
-    if (!data || data.length === 0) vehicleLicense = null;
+    if (!data || data.length === 0) {
+      // Auto create missing vehicle record to satisfy foreign key
+      await supabase.from('vehicles').upsert({
+        license_plate: vehicleLicense,
+        status: 'Available'
+      });
+    }
   }
 
   const { error } = await supabase.from('drivers').upsert({
@@ -939,13 +945,21 @@ export async function dbSaveJob(j: TransportJob) {
   let customerId: string | null = j.customerId || null;
   if (customerId) {
     const { data } = await supabase.from('customers').select('id').eq('id', customerId);
-    if (!data || data.length === 0) customerId = null;
+    if (!data || data.length === 0) {
+      if (j.customerName) {
+        await supabase.from('customers').upsert({ id: customerId, name: j.customerName });
+      } else {
+        customerId = null;
+      }
+    }
   }
 
   let vehicleLicense: string | null = j.vehicleLicense || null;
   if (vehicleLicense) {
     const { data } = await supabase.from('vehicles').select('license_plate').eq('license_plate', vehicleLicense);
-    if (!data || data.length === 0) vehicleLicense = null;
+    if (!data || data.length === 0) {
+      await supabase.from('vehicles').upsert({ license_plate: vehicleLicense, status: 'Available' });
+    }
   }
 
   const fullPayload = {
@@ -1015,7 +1029,9 @@ export async function dbSaveExpense(e: DailyExpense) {
   let vehicleLicense: string | null = e.vehicleLicense || null;
   if (vehicleLicense) {
     const { data } = await supabase.from('vehicles').select('license_plate').eq('license_plate', vehicleLicense);
-    if (!data || data.length === 0) vehicleLicense = null;
+    if (!data || data.length === 0) {
+      await supabase.from('vehicles').upsert({ license_plate: vehicleLicense, status: 'Available' });
+    }
   }
 
   const fullPayload = {
@@ -1093,7 +1109,13 @@ export async function dbSaveInvoice(inv: Invoice) {
   let customerId: string | null = inv.customerId || null;
   if (customerId) {
     const { data } = await supabase.from('customers').select('id').eq('id', customerId);
-    if (!data || data.length === 0) customerId = null;
+    if (!data || data.length === 0) {
+      if (inv.customerName) {
+        await supabase.from('customers').upsert({ id: customerId, name: inv.customerName });
+      } else {
+        customerId = null;
+      }
+    }
   }
 
   const { error } = await supabase.from('invoices').upsert({
