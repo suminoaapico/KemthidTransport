@@ -764,17 +764,17 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                         <div className="space-y-1">
                           <h1 className="text-[15px] font-extrabold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
                           <p className="text-slate-600 block text-[11px] font-medium font-sans">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
-                          <div className="text-[11px] text-slate-600 space-y-0.5 block font-mono">
+                          <div className="text-[11px] text-slate-600 space-y-0.5 block font-sans">
                             <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-800">0205568017041</span></div>
                           </div>
                         </div>
                       </div>
                       <div className="text-right space-y-2 shrink-0">
                         <div className="text-right">
-                          <h2 className="text-2xl font-black tracking-[0.05em] text-slate-900 font-serif leading-none">RECEIPT</h2>
+                          <h2 className="text-2xl font-black tracking-[0.05em] text-slate-900 font-sans leading-none">RECEIPT</h2>
                           <p className="text-[11px] text-slate-800 font-bold mt-1">ใบเสร็จรับเงิน / Receipt</p>
                         </div>
-                        <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 font-mono">
+                        <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 font-sans">
                           <div className="flex justify-end gap-4">
                             <span className="text-slate-500">เลขที่</span>
                             <span className="font-extrabold text-slate-900 w-24 text-left">{previewReceipt.receiptNo}</span>
@@ -795,20 +795,20 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                         <p className="text-slate-755 leading-relaxed text-[11px] font-medium font-sans">
                           ที่อยู่ : {clientAddress}
                         </p>
-                        <div className="text-slate-600 text-[11px] font-mono space-y-0.5">
+                        <div className="text-slate-600 text-[11px] font-sans space-y-0.5">
                           {clientPhone && <div>โทร : <span className="font-bold text-slate-850">{clientPhone}</span></div>}
                           <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-850">{clientTaxId || '0205560001196'}</span></div>
                         </div>
                       </div>
-                      <div className="space-y-1 text-right font-mono text-[11px] text-slate-600">
-                        <div>เลขอ้างอิงใบวางบิล Invoice Ref: <span className="font-bold text-slate-900">{previewReceipt.invoiceNo}</span></div>
+                      <div className="space-y-1 text-right font-sans text-[11px] text-slate-600">
+                        <div>เลขอ้างอิงใบวางบิล Invoice Ref: <span className="font-bold text-slate-900">{previewReceipt.invoiceNo ? previewReceipt.invoiceNo.replace(/-/g, '') : ''}</span></div>
                         <div>ช่องทางการชำระ Payment: <span className="font-bold text-slate-900">{previewReceipt.paymentMethod}</span></div>
                       </div>
                     </div>
 
                     {/* Items Table */}
                     <div className="py-4">
-                      <table className="w-full text-left text-[11px] border-collapse">
+                      <table className="w-full text-left text-[11px] border-collapse font-sans">
                         <thead>
                           <tr className="border-b border-t border-slate-400 text-slate-500 font-bold text-[10px] bg-slate-50/50">
                             <th className="p-2 w-16 text-center">ลำดับ<br/>Item</th>
@@ -819,13 +819,13 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                         </thead>
                         <tbody className="divide-y divide-slate-100 font-sans">
                           <tr className="text-slate-800">
-                            <td className="p-3 text-center font-mono text-slate-600">1</td>
+                            <td className="p-3 text-center text-slate-600">1</td>
                             <td className="p-3 font-semibold text-slate-900">
                               <div className="text-[11px] font-bold text-slate-900">
                                 ค่าบริการขนส่งสินค้า และค่าบริการล่วงเวลา (Transportation & Overtime Services)
                               </div>
-                              <div className="text-[10px] text-slate-500 font-normal font-mono mt-1">
-                                อ้างอิงใบแจ้งหนี้เลขที่ document ref: {previewReceipt.invoiceNo}
+                              <div className="text-[10px] text-slate-500 font-normal mt-1">
+                                อ้างอิงใบแจ้งหนี้เลขที่ document ref: {previewReceipt.invoiceNo ? previewReceipt.invoiceNo.replace(/-/g, '') : ''}
                               </div>
                               {(isTransport && (overtimeSum > 0 || xraySum > 0)) && (
                                 <div className="mt-2 border-t border-slate-100 pt-1.5 text-[11px] text-slate-700 font-normal">
@@ -833,43 +833,43 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                                   <div className="space-y-1 max-w-[280px] ml-auto">
                                     <div className="flex justify-between">
                                       <span className="text-slate-600">ค่าขนส่ง:</span>
-                                      <span className="font-mono font-bold text-slate-900">{formatCurrency(transportSum)}</span>
+                                      <span className="font-bold text-slate-900">{formatCurrency(transportSum)}</span>
                                     </div>
                                     {overtimeSum > 0 && (
                                       <div className="flex justify-between">
                                         <span className="text-slate-600">ค่า OT:</span>
-                                        <span className="font-mono font-bold text-slate-900">{formatCurrency(overtimeSum)}</span>
+                                        <span className="font-bold text-slate-900">{formatCurrency(overtimeSum)}</span>
                                       </div>
                                     )}
                                     {xraySum > 0 && (
                                       <div className="flex justify-between">
                                         <span className="text-slate-600">ค่า X-ray:</span>
-                                        <span className="font-mono font-bold text-slate-900">{formatCurrency(xraySum)}</span>
+                                        <span className="font-bold text-slate-900">{formatCurrency(xraySum)}</span>
                                       </div>
                                     )}
                                   </div>
                                 </div>
                               )}
                             </td>
-                            <td className="p-3 text-center font-mono">{noOfTrans}</td>
-                            <td className="p-3 text-right font-mono font-bold text-[12px]">{formatCurrency(subtotal)}</td>
+                            <td className="p-3 text-center">{noOfTrans}</td>
+                            <td className="p-3 text-right font-bold text-[12px]">{formatCurrency(subtotal)}</td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
 
                     {/* Total display with dotted pattern and Computations inside static grid elements */}
-                    <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-300 mt-2">
+                    <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-300 mt-2 font-sans">
                       <div className="col-span-2 flex items-center">
                         <div className="w-full border-2 border-dotted border-slate-400 p-4 rounded bg-slate-50 flex items-center justify-center min-h-[50px] relative">
                           <span className="text-[10px] text-slate-400 font-bold absolute top-1 left-2 uppercase tracking-wide">ยอดรวมรับเงินตัวอักษรไทย (Thai Baht Word)</span>
-                          <span className="text-xs font-semibold text-slate-805 text-center font-serif leading-none">
+                          <span className="text-xs font-semibold text-slate-800 text-center leading-none">
                             -- {totalText} --
                           </span>
                         </div>
                       </div>
 
-                      <div className="space-y-1 text-[11px] border bg-slate-50/30 p-3 rounded-lg border-slate-200 font-mono">
+                      <div className="space-y-1 text-[11px] border bg-slate-50/30 p-3 rounded-lg border-slate-200 font-sans">
                         <div className="flex justify-between text-slate-500 border-b border-slate-100 pb-1">
                           <span>รวมเงิน / Total</span>
                           <span className="font-bold">{formatCurrency(subtotal)}</span>
@@ -885,7 +885,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                             <span>{formatCurrency(vatAmount)}</span>
                           </div>
                         )}
-                        <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-1.5 border-t border-slate-200 font-mono">
+                        <div className="flex justify-between text-xs font-bold text-slate-950 pt-1.5 border-t border-slate-200 font-sans">
                           <span>ยอดชำระสุทธิ / Total Net</span>
                           <span className="text-slate-910 text-sm font-bold">{formatCurrency(grandTotal)}</span>
                         </div>

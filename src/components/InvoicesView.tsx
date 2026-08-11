@@ -926,7 +926,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 <div className="space-y-1">
                   <h1 className="text-[15px] font-extrabold tracking-tight text-slate-900 block">บริษัท เข็มทิศ ทรานสปอร์ต จำกัด</h1>
                   <p className="text-slate-600 block text-[11px] font-medium font-sans">102/51 ม.10 ต.ทุ่งสุขลา อ.ศรีราชา จ.ชลบุรี 20230</p>
-                  <div className="text-[11px] text-slate-600 space-y-0.5 block font-mono">
+                  <div className="text-[11px] text-slate-600 space-y-0.5 block font-sans">
                     <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-800">0205568017041</span></div>
                   </div>
                 </div>
@@ -934,13 +934,13 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
 
               <div className="text-right space-y-2 shrink-0">
                 <div className="text-right">
-                  <h2 className="text-2xl font-black tracking-[0.1em] text-slate-900 font-serif leading-none">INVOICE</h2>
+                  <h2 className="text-2xl font-black tracking-[0.1em] text-slate-900 font-sans leading-none">INVOICE</h2>
                   <p className="text-[11px] text-slate-800 font-bold mt-1 font-sans">ใบวางบิล/ใบแจ้งหนี้</p>
                 </div>
-                <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 font-mono">
+                <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 font-sans">
                   <div className="flex justify-end gap-4">
                     <span className="text-slate-500">เลขที่</span>
-                    <span className="font-extrabold text-slate-900 w-24 text-left">{previewInvoice.invoiceNo}</span>
+                    <span className="font-extrabold text-slate-900 w-24 text-left">{previewInvoice.invoiceNo.replace(/-/g, '')}</span>
                   </div>
                   <div className="flex justify-end gap-4">
                     <span className="text-slate-500">วันที่</span>
@@ -958,7 +958,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 <p className="text-slate-700 leading-relaxed text-[11px] font-medium font-sans">
                   ที่อยู่ : {customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี'}
                 </p>
-                <div className="text-slate-600 text-[11px] font-mono space-y-0.5">
+                <div className="text-slate-600 text-[11px] font-sans space-y-0.5">
                   <div>โทร : <span className="font-bold text-slate-850">{customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.phone || '081-xxxxxxx'}</span></div>
                   {customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.phone && (
                     <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-850">0205560001196</span> (สำนักงานใหญ่)</div>
@@ -973,7 +973,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             {/* Invoiced Items Table */}
             <div className="py-4">
               {previewInvoice.invoiceType === 'Transport' ? (
-                <table className="w-full text-left text-[11px] border-collapse">
+                <table className="w-full text-left text-[11px] border-collapse font-sans">
                   <thead>
                     <tr className="border-b border-t border-slate-400 text-slate-505 font-bold text-[10px] bg-slate-50/50">
                       <th className="p-2 w-16 text-center">ลำดับ<br/>Item</th>
@@ -988,7 +988,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     {(previewInvoice.shipper || previewInvoice.bookingNo) && (
                       <tr className="border-b border-slate-200">
                         <td className="p-2 text-center"></td>
-                        <td className="p-2 font-mono text-[11px] text-slate-700 bg-slate-50/15" colSpan={4}>
+                        <td className="p-2 font-sans text-[11px] text-slate-700 bg-slate-50/15" colSpan={4}>
                           <div className="grid grid-cols-2 gap-x-12 py-1">
                             <div className="flex">
                               <span className="w-24 text-slate-400 font-sans font-bold">Shipper</span>
@@ -1059,7 +1059,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                         <React.Fragment key={containerIndex}>
                           <tr className="font-bold border-none">
                             <td className="p-2 text-center text-slate-700 font-sans">{containerIndex + 1}</td>
-                            <td className="p-2 font-semibold text-slate-950 font-mono">
+                            <td className="p-2 font-semibold text-slate-950 font-sans">
                               Cntr no. &nbsp;&nbsp;&nbsp;&nbsp; {c.containerNo || '-'}
                             </td>
                             <td className="p-2 text-center"></td>
@@ -1068,14 +1068,14 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                           </tr>
 
                           {charges.map((ch, chIdx) => (
-                            <tr key={chIdx} className="text-slate-600 border-none">
+                            <tr key={chIdx} className="text-slate-600 border-none font-sans">
                               <td className="p-1 px-2 text-center"></td>
-                              <td className="p-1 px-2 pl-8 font-serif italic text-slate-650">
+                              <td className="p-1 px-2 pl-8 italic text-slate-650">
                                 {ch.name}
                               </td>
-                              <td className="p-1 px-2 text-center font-mono text-[10px]">{ch.qty}</td>
-                              <td className="p-1 px-2 text-right font-mono">{formatCurrency(ch.rate)}</td>
-                              <td className="p-1 px-2 text-right font-mono">{formatCurrency(ch.amount)}</td>
+                              <td className="p-1 px-2 text-center text-[10px]">{ch.qty}</td>
+                              <td className="p-1 px-2 text-right">{formatCurrency(ch.rate)}</td>
+                              <td className="p-1 px-2 text-right">{formatCurrency(ch.amount)}</td>
                             </tr>
                           ))}
                         </React.Fragment>
@@ -1084,7 +1084,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                   </tbody>
                 </table>
               ) : (
-                <table className="w-full text-left text-[11px] border-collapse">
+                <table className="w-full text-left text-[11px] border-collapse font-sans">
                   <thead>
                     <tr className="border-b border-t border-slate-400 text-slate-505 font-bold text-[10px] bg-slate-50/50">
                       <th className="p-2 w-16 text-center">ลำดับ<br/>Item</th>
@@ -1099,7 +1099,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     {(previewInvoice.shipper || previewInvoice.bookingNo) && (
                       <tr className="border-b border-slate-200">
                         <td className="p-2 text-center"></td>
-                        <td className="p-2 font-mono text-[11px] text-slate-700 bg-slate-50/15" colSpan={4}>
+                        <td className="p-2 font-sans text-[11px] text-slate-700 bg-slate-50/15" colSpan={4}>
                           <div className="grid grid-cols-2 gap-x-12 py-1">
                             <div className="flex">
                               <span className="w-24 text-slate-400 font-sans font-bold">Shipper</span>
@@ -1115,12 +1115,12 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     )}
 
                     {previewInvoice.advanceItems.map((item, i) => (
-                      <tr key={item.id} className="text-slate-800">
-                        <td className="p-2.5 text-center font-mono">{i + 1}</td>
+                      <tr key={item.id} className="text-slate-800 font-sans">
+                        <td className="p-2.5 text-center">{i + 1}</td>
                         <td className="p-2.5 font-medium">{item.description}</td>
-                        <td className="p-2.5 text-center font-mono text-[10px]">1</td>
-                        <td className="p-2.5 text-right font-mono">{formatCurrency(item.amount)}</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-900">{formatCurrency(item.amount)}</td>
+                        <td className="p-2.5 text-center text-[10px]">1</td>
+                        <td className="p-2.5 text-right">{formatCurrency(item.amount)}</td>
+                        <td className="p-2.5 text-right font-bold text-slate-900">{formatCurrency(item.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1129,17 +1129,17 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             </div>
 
             {/* Calculations and Thai Baht words inside static grid elements, preventing line wrapping or massive vertical gaps */}
-            <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-300 mt-2">
+            <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-300 mt-2 font-sans">
               <div className="col-span-2 flex items-center">
                 <div className="w-full border-2 border-dotted border-slate-400 p-4 rounded bg-slate-50 flex items-center justify-center min-h-[50px] relative">
                   <span className="text-[10px] text-slate-400 font-bold absolute top-1 left-2 uppercase tracking-wide">จำนวนยอดเงินตัวอักษรไทย (Thai Baht Text)</span>
-                  <span className="text-xs font-semibold text-slate-805 text-center font-serif leading-none">
+                  <span className="text-xs font-semibold text-slate-800 text-center leading-none">
                     -- {previewInvoice.totalText} --
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-1 text-[11px] border bg-slate-50/30 p-3 rounded-lg border-slate-200 font-mono">
+              <div className="space-y-1 text-[11px] border bg-slate-50/30 p-3 rounded-lg border-slate-200 font-sans">
                 <div className="flex justify-between text-slate-500">
                   <span>รวมเงิน / Total</span>
                   <span className="font-bold">{formatCurrency(previewInvoice.subtotal)}</span>
@@ -1155,7 +1155,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     <span>{formatCurrency(previewInvoice.vatAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-xs font-serif font-black text-slate-950 pt-1.5 border-t border-slate-200 font-mono">
+                <div className="flex justify-between text-xs font-bold text-slate-950 pt-1.5 border-t border-slate-200 font-sans">
                   <span>ยอดชำระ / Total Net</span>
                   <span className="text-slate-950 text-sm font-bold">{formatCurrency(previewInvoice.grandTotal)}</span>
                 </div>
