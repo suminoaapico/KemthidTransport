@@ -27,6 +27,8 @@ export interface Vehicle {
   actExpiry: string;
   insExpiry: string;
   status: 'Available' | 'Maintenance';
+  ownerType?: 'company' | 'subcontractor';
+  driverId?: string;
 }
 
 export interface Employee {
@@ -57,6 +59,7 @@ export interface ContainerDetail {
   overtimeQty?: number;
   overtimeRate?: number;
   expenses?: ContainerExpense[];
+  size?: string;
 }
 
 export interface AdvanceItem {
@@ -87,6 +90,9 @@ export interface TransportJob {
   pickupAt?: string;
   loadAt?: string;
   returnAt?: string;
+  pickupLocation?: string;
+  returnLocation?: string;
+  notes?: string;
 }
 
 export interface DailyExpense {
@@ -113,6 +119,14 @@ export interface CreditIncome {
   status: 'ยังไม่ถึงกำหนด' | 'ใกล้ครบกำหนด' | 'เกินกำหนด' | 'รับเงินแล้ว';
 }
 
+export interface ExtraInvoiceItem {
+  id: string;
+  name: string;
+  qty: number;
+  rate: number;
+  amount: number;
+}
+
 export interface Invoice {
   invoiceNo: string;
   date: string;
@@ -124,8 +138,9 @@ export interface Invoice {
   shipper: string;
   containers: ContainerDetail[]; // empty for advance
   advanceItems: AdvanceItem[]; // empty for transport
+  extraItems?: ExtraInvoiceItem[]; // รายการเพิ่มเติม
   subtotal: number;
-  withholdingTax: number; // 1% for transport, 0 for advance
+  withholdingTax: number; // 1% for transport and extra items
   vatAmount: number; // 7% for advance, 0 for transport
   grandTotal: number;
   totalText: string;
@@ -140,6 +155,49 @@ export interface Receipt {
   amount: number;
   paymentMethod: 'เงินสด' | 'โอนเงิน' | 'เช็ค';
   receiptType: 'Transport' | 'Advance';
+}
+
+export interface ManagerEntry {
+  id: string;
+  date: string;
+  type: 'INCOME' | 'EXPENSE'; // รายรับ vs รายจ่าย
+  category: string;
+  title: string;
+  amount: number;
+  recordedBy?: string;
+  referenceNo?: string;
+  note?: string;
+}
+
+export interface SubcontractorTripItem {
+  id: string;
+  jobNo?: string;
+  date: string;
+  shipper: string;
+  bookingNo: string;
+  type: string; // e.g. 20', 40', Import, Export, ขาเข้า, ขาออก
+  containerNo: string;
+  price: number;
+  ot: number;
+  remark: string;
+}
+
+export interface SubcontractorPaymentDoc {
+  id: string;
+  paymentNo: string; // e.g. KTT-AP-2026-08001
+  date: string;
+  partnerName: string; // ชื่อ
+  vehicleLicense: string; // ทะเบียน
+  paymentCycle: string; // รอบทำจ่าย (เดือน)
+  trips: SubcontractorTripItem[];
+  subtotalPrice: number;
+  subtotalOt: number;
+  totalBeforeDeductions: number; // รวม
+  advanceDeduction: number; // หัก Advance
+  withholdingTax: number; // หัก ณ ที่จ่าย 1%
+  grandTotal: number; // รวมทั้งสิ้น
+  status: 'ยังไม่ได้จ่าย' | 'จ่ายแล้ว';
+  note?: string;
 }
 
 export interface PartnerPayment {
@@ -178,3 +236,4 @@ export interface PayrollRecord {
   netSalary: number;
   status: 'Paid' | 'Unpaid';
 }
+

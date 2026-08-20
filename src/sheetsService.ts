@@ -1,14 +1,14 @@
 import { 
   Customer, Driver, Vehicle, Employee, TransportJob, 
   DailyExpense, CreditIncome, Invoice, Receipt, PartnerPayment, 
-  WithholdingTaxRecord, PayrollRecord 
+  WithholdingTaxRecord, PayrollRecord, ManagerEntry, SubcontractorPaymentDoc 
 } from './types';
 
 // Let's declare our default Spreadsheet ID.
 // The user provided: https://docs.google.com/spreadsheets/d/1jLTU3yLzlzYXSa2yJVvOIbhrR3o2g6UICmhcqJz25JQ/edit?usp=sharing
 export const DEFAULT_SPREADSHEET_ID = "1jLTU3yLzlzYXSa2yJVvOIbhrR3o2g6UICmhcqJz25JQ";
 
-interface LocalDataState {
+export interface LocalDataState {
   customers: Customer[];
   drivers: Driver[];
   vehicles: Vehicle[];
@@ -21,6 +21,8 @@ interface LocalDataState {
   partnerPayments: PartnerPayment[];
   withholdingTaxes: WithholdingTaxRecord[];
   payroll: PayrollRecord[];
+  managerEntries: ManagerEntry[];
+  partnerPaymentDocs: SubcontractorPaymentDoc[];
 }
 
 const DEFAULT_LOCAL_STATE: LocalDataState = {
@@ -35,7 +37,9 @@ const DEFAULT_LOCAL_STATE: LocalDataState = {
   receipts: [],
   partnerPayments: [],
   withholdingTaxes: [],
-  payroll: []
+  payroll: [],
+  managerEntries: [],
+  partnerPaymentDocs: []
 };
 
 // Key name for local Storage
@@ -459,7 +463,9 @@ export async function loadFromGoogleSheets(spreadsheetId: string, token: string)
       receipts: state.receipts || [],
       partnerPayments: state.partnerPayments || [],
       withholdingTaxes: state.withholdingTaxes || [],
-      payroll: state.payroll || []
+      payroll: state.payroll || [],
+      managerEntries: state.managerEntries || [],
+      partnerPaymentDocs: state.partnerPaymentDocs || []
     };
   } catch (err) {
     console.error("Error loading worksheets from Sheets API:", err);

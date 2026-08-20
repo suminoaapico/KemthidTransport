@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart2, Truck, DollarSign, FileText, CheckSquare, Users, Settings, 
-  RotateCw, CloudLightning, Database, Sparkles, HelpCircle, AlertCircle, CheckCircle, Info, ChevronRight
+  RotateCw, CloudLightning, Database, Sparkles, HelpCircle, AlertCircle, CheckCircle, Info, ChevronRight,
+  Briefcase
 } from 'lucide-react';
 
 import { 
@@ -21,7 +22,7 @@ import {
 import { 
   Customer, Driver, Vehicle, Employee, TransportJob, 
   DailyExpense, Invoice, Receipt, PartnerPayment, 
-  WithholdingTaxRecord, PayrollRecord 
+  WithholdingTaxRecord, PayrollRecord, ManagerEntry, SubcontractorPaymentDoc
 } from './types';
 
 // Importing Tab Components
@@ -34,8 +35,10 @@ import { RegistryView } from './components/RegistryView';
 import { FinanceView } from './components/FinanceView';
 import { ManualView } from './components/ManualView';
 import { ReportsView } from './components/ReportsView';
+import { PartnerPaymentView } from './components/PartnerPaymentView';
+import { ManagerEntryView } from './components/ManagerEntryView';
 
-type AppTab = 'dashboard' | 'jobs' | 'expenses' | 'invoices' | 'receipts' | 'registry' | 'finance' | 'reports' | 'manual';
+type AppTab = 'dashboard' | 'jobs' | 'expenses' | 'partner_payout' | 'invoices' | 'receipts' | 'registry' | 'finance' | 'manager_entry' | 'reports' | 'manual';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
@@ -613,73 +616,112 @@ export default function App() {
       {/* Main Tab bar Navigator (Tabs mapping out the 14 requirements clearly) */}
       <nav className="bg-white border-b border-slate-200 z-10 sticky top-0 shadow-xs no-print">
         <div className="max-w-7xl mx-auto px-4 overflow-x-auto flex items-center font-sans">
-          {currentUser === 'staff' && (
+          {currentUser === 'staff' ? (
             <>
+              <button 
+                onClick={() => setActiveTab('dashboard')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'dashboard' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <BarChart2 className="w-4 h-4" /> แดชบอร์ด
+              </button>
+              
+              <button 
+                onClick={() => setActiveTab('jobs')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'jobs' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <Truck className="w-4 h-4" /> แผนการวิ่งงาน
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('expenses')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'expenses' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <DollarSign className="w-4 h-4" /> ค่าน้ำมัน&ทางด่วน
+              </button>
+
+              {/* Requirement 4: ทำจ่ายรถร่วม (Admin Subcontractor Payout) */}
+              <button 
+                onClick={() => setActiveTab('partner_payout')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'partner_payout' ? 'border-indigo-600 text-indigo-700 font-extrabold bg-indigo-50/50' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+              >
+                <Truck className="w-4 h-4 text-indigo-600" /> ทำจ่ายรถร่วม
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('invoices')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'invoices' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <FileText className="w-4 h-4" /> ออกใบแจ้งหนี้
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('receipts')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'receipts' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <CheckSquare className="w-4 h-4" /> ใบเสร็จรับเงิน
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('registry')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'registry' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <Users className="w-4 h-4" /> ทะเบียน (4 ฐาน)
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('finance')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'finance' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <Settings className="w-4 h-4" /> การเงิน & เงินเดือน
+              </button>
+
+              {/* Requirement 2: ฝั่ง Manager - บันทึกรายรับ-รายจ่าย */}
+              <button 
+                onClick={() => setActiveTab('manager_entry')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'manager_entry' ? 'border-indigo-600 text-indigo-700 font-extrabold bg-purple-50/40' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+              >
+                <Briefcase className="w-4 h-4 text-purple-600" /> บันทึกรายรับ-จ่าย (Manager)
+              </button>
+
+              {/* Requirement 3: ปรับปรุงเมนูรายงานเป็น รายละเอียดวิ่งงานของรถแต่ละคัน */}
+              <button 
+                onClick={() => setActiveTab('reports')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'reports' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <BarChart2 className="w-4 h-4" /> รายงานวิ่งงานแยกคัน
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('manual')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'manual' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-emerald-600 hover:text-emerald-900 bg-emerald-500/5'}`}
+              >
+                <HelpCircle className="w-4 h-4 text-emerald-500" /> คู่มือใช้งาน
+              </button>
+            </>
+          ) : (
+            /* Manager User Navigation */
+            <>
+              <button 
+                onClick={() => setActiveTab('reports')}
+                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'reports' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              >
+                <BarChart2 className="w-4 h-4" /> รายงานวิ่งงานแยกคัน & งบการเงิน
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('manager_entry')}
+                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'manager_entry' ? 'border-indigo-600 text-indigo-700 font-extrabold bg-purple-50/40' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+              >
+                <Briefcase className="w-4 h-4 text-purple-600" /> บันทึกรายรับ-รายจ่าย (Manager)
+              </button>
+
               <button 
                 onClick={() => setActiveTab('dashboard')}
                 className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'dashboard' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
               >
                 <BarChart2 className="w-4 h-4" /> แดชบอร์ดสรุปภาพรวม
               </button>
-              
-              <button 
-                onClick={() => setActiveTab('jobs')}
-                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'jobs' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-              >
-                <Truck className="w-4 h-4" /> แผนจราจรวิ่งงานขนส่ง
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('expenses')}
-                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'expenses' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-              >
-                <DollarSign className="w-4 h-4" /> บันทึกจ่ายน้ำมัน&ทางด่วน
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('invoices')}
-                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'invoices' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-              >
-                <FileText className="w-4 h-4" /> ออกใบแจ้งหนี้ (หัก 1%)
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('receipts')}
-                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'receipts' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-              >
-                <CheckSquare className="w-4 h-4" /> ออกใบเสร็จรับเงิน
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('registry')}
-                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'registry' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-              >
-                <Users className="w-4 h-4" /> ทะเบียนตารางหลัก (4 ฐาน)
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('finance')}
-                className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'finance' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-              >
-                <Settings className="w-4 h-4" /> บัญชีเงินกู้, เงินเดือน & งบ P&L
-              </button>
             </>
-          )}
-
-          <button 
-            onClick={() => setActiveTab('reports')}
-            className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'reports' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-          >
-            <BarChart2 className="w-4 h-4" /> รายงานสรุปรายได้-จ่าย
-          </button>
-
-          {currentUser === 'staff' && (
-            <button 
-              onClick={() => setActiveTab('manual')}
-              className={`py-3.5 px-4 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'manual' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-emerald-600 hover:text-emerald-900 bg-emerald-500/5'}`}
-            >
-              <HelpCircle className="w-4 h-4 text-emerald-500" /> คู่มือการใช้งานระบบ
-            </button>
           )}
         </div>
       </nav>
@@ -687,22 +729,43 @@ export default function App() {
       {/* Main Core View Area render dependence on current Nav Bar click */}
       <main className="flex-1 max-w-7xl mx-auto px-4 py-6 w-full space-y-6">
         
-        {currentUser === 'manager' ? (
+        {currentUser === 'manager' && activeTab === 'reports' && (
           <ReportsView 
             jobs={state.jobs}
             expenses={state.expenses}
-            invoices={state.invoices}
-            receipts={state.receipts}
-            drivers={state.drivers}
             vehicles={state.vehicles}
+            drivers={state.drivers}
             customers={state.customers}
-            partnerPayments={state.partnerPayments}
-            payroll={state.payroll}
-            employees={state.employees}
+            managerEntries={state.managerEntries}
+            partnerPaymentDocs={state.partnerPaymentDocs}
           />
-        ) : (
-          <>
-            {activeTab === 'dashboard' && (
+        )}
+
+        {currentUser === 'manager' && activeTab === 'manager_entry' && (
+          <ManagerEntryView
+            entries={state.managerEntries || []}
+            onSaveEntry={(entry) => {
+              updateStateAndPersist(prev => {
+                const list = prev.managerEntries ? [...prev.managerEntries] : [];
+                const idx = list.findIndex(e => e.id === entry.id);
+                if (idx > -1) {
+                  list[idx] = entry;
+                } else {
+                  list.push(entry);
+                }
+                return { ...prev, managerEntries: list };
+              });
+            }}
+            onDeleteEntry={(id) => {
+              updateStateAndPersist(prev => ({
+                ...prev,
+                managerEntries: (prev.managerEntries || []).filter(e => e.id !== id)
+              }));
+            }}
+          />
+        )}
+
+        {currentUser === 'manager' && activeTab === 'dashboard' && (
           <DashboardView 
             jobs={state.jobs}
             expenses={state.expenses}
@@ -712,337 +775,406 @@ export default function App() {
             vehicles={state.vehicles}
             customers={state.customers}
             onNavigate={(dest) => {
-              if (dest === 'PLAN_JOB') {
-                setActiveTab('jobs');
-              } else if (dest === 'DAILY_EXPENSE') {
-                setActiveTab('expenses');
-              }
+              if (dest === 'PLAN_JOB') setActiveTab('reports');
+              else if (dest === 'DAILY_EXPENSE') setActiveTab('manager_entry');
             }}
           />
         )}
 
-        {activeTab === 'jobs' && (
-          <JobsView 
-            jobs={state.jobs}
-            customers={state.customers}
-            drivers={state.drivers}
-            vehicles={state.vehicles}
-            expenses={state.expenses}
-            onSaveJob={(job) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.jobs];
-                const index = list.findIndex(j => j.jobNo === job.jobNo);
-                if (index > -1) {
-                  list[index] = job;
-                } else {
-                  list.push(job);
-                }
-                return { ...prev, jobs: list };
-              });
-              handleSupabaseSave(dbSaveJob, job, 'ขนส่ง (transport_jobs)');
-            }}
-            onDeleteJob={(jobNo) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                jobs: prev.jobs.filter(j => j.jobNo !== jobNo)
-              }));
-              handleSupabaseDelete(dbDeleteJob, jobNo, 'ขนส่ง (transport_jobs)');
-            }}
-          />
-        )}
-
-        {activeTab === 'expenses' && (
-          <ExpensesView 
-            expenses={state.expenses}
-            vehicles={state.vehicles}
-            drivers={state.drivers}
-            jobs={state.jobs}
-            onSaveExpense={(exp) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.expenses];
-                const idx = list.findIndex(e => e.id === exp.id);
-                if (idx > -1) {
-                  list[idx] = exp;
-                } else {
-                  list.push(exp);
-                }
-                return { ...prev, expenses: list };
-              });
-              handleSupabaseSave(dbSaveExpense, exp, 'ค่าใช้จ่ายประจำวัน (daily_expenses)');
-            }}
-            onDeleteExpense={(id) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                expenses: prev.expenses.filter(e => e.id !== id)
-              }));
-              handleSupabaseDelete(dbDeleteExpense, id, 'ค่าใช้จ่ายประจำวัน (daily_expenses)');
-            }}
-          />
-        )}
-
-        {activeTab === 'invoices' && (
-          <InvoicesView 
-            invoices={state.invoices}
-            customers={state.customers}
-            jobs={state.jobs}
-            onSaveInvoice={(invoice) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.invoices];
-                const idx = list.findIndex(inv => inv.invoiceNo === invoice.invoiceNo);
-                if (idx > -1) {
-                  list[idx] = invoice;
-                } else {
-                  list.push(invoice);
-                }
-
-                // If invoice maps to a job, we can set that Job status instantly!
-                const updatedJobs = prev.jobs.map(job => {
-                  if (job.jobNo === invoice.jobNo) {
-                    return { ...job, status: 'วางบิลแล้ว' as const };
+        {currentUser === 'staff' && (
+          <>
+            {activeTab === 'dashboard' && (
+              <DashboardView 
+                jobs={state.jobs}
+                expenses={state.expenses}
+                invoices={state.invoices}
+                receipts={state.receipts}
+                drivers={state.drivers}
+                vehicles={state.vehicles}
+                customers={state.customers}
+                onNavigate={(dest) => {
+                  if (dest === 'PLAN_JOB') {
+                    setActiveTab('jobs');
+                  } else if (dest === 'DAILY_EXPENSE') {
+                    setActiveTab('expenses');
                   }
-                  return job;
-                });
+                }}
+              />
+            )}
 
-                return { ...prev, invoices: list, jobs: updatedJobs };
-              });
-              handleSupabaseSave(dbSaveInvoice, invoice, 'ใบแจ้งหนี้ (invoices)');
-            }}
-            onDeleteInvoice={(invNo) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                invoices: prev.invoices.filter(i => i.invoiceNo !== invNo)
-              }));
-              handleSupabaseDelete(dbDeleteInvoice, invNo, 'ใบแจ้งหนี้ (invoices)');
-            }}
-          />
-        )}
-
-        {activeTab === 'receipts' && (
-          <ReceiptsView 
-            receipts={state.receipts}
-            invoices={state.invoices}
-            customers={state.customers}
-            onSaveReceipt={(receipt) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.receipts];
-                const idx = list.findIndex(r => r.receiptNo === receipt.receiptNo);
-                if (idx > -1) {
-                  list[idx] = receipt;
-                } else {
-                  list.push(receipt);
-                }
-
-                // Update original invoice statuses to 'Paid' / 'จ่ายแล้ว'
-                const invoiceNosToPay = receipt.invoiceNo.split(',').map(s => s.trim()).filter(Boolean);
-                const updatedInv = prev.invoices.map(inv => {
-                  if (invoiceNosToPay.includes(inv.invoiceNo)) {
-                    return { ...inv, status: 'จ่ายแล้ว' as const };
-                  }
-                  return inv;
-                });
-
-                return { ...prev, receipts: list, invoices: updatedInv };
-              });
-              handleSupabaseSave(dbSaveReceipt, receipt, 'ใบเสร็จรับเงิน (receipts)');
-            }}
-            onDeleteReceipt={(recNo) => {
-              const rec = state.receipts.find(r => r.receiptNo === recNo);
-              const invoiceNos = rec ? rec.invoiceNo.split(',').map(s => s.trim()).filter(Boolean) : [];
-
-              updateStateAndPersist(prev => {
-                const deletedReceipt = prev.receipts.find(r => r.receiptNo === recNo);
-                let updatedInv = prev.invoices;
-                if (deletedReceipt) {
-                  const invoiceNosToUnpay = deletedReceipt.invoiceNo.split(',').map(s => s.trim()).filter(Boolean);
-                  updatedInv = prev.invoices.map(inv => {
-                    if (invoiceNosToUnpay.includes(inv.invoiceNo)) {
-                      return { ...inv, status: 'ยังไม่จ่าย' as const };
+            {activeTab === 'jobs' && (
+              <JobsView 
+                jobs={state.jobs}
+                customers={state.customers}
+                drivers={state.drivers}
+                vehicles={state.vehicles}
+                expenses={state.expenses}
+                onSaveJob={(job) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.jobs];
+                    const index = list.findIndex(j => j.jobNo === job.jobNo);
+                    if (index > -1) {
+                      list[index] = job;
+                    } else {
+                      list.push(job);
                     }
-                    return inv;
+                    return { ...prev, jobs: list };
                   });
-                }
-                return {
-                  ...prev,
-                  receipts: prev.receipts.filter(r => r.receiptNo !== recNo),
-                  invoices: updatedInv
-                };
-              });
+                  handleSupabaseSave(dbSaveJob, job, 'ขนส่ง (transport_jobs)');
+                }}
+                onDeleteJob={(jobNo) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    jobs: prev.jobs.filter(j => j.jobNo !== jobNo)
+                  }));
+                  handleSupabaseDelete(dbDeleteJob, jobNo, 'ขนส่ง (transport_jobs)');
+                }}
+              />
+            )}
 
-              handleSupabaseDelete(async (id) => {
-                await dbDeleteReceipt(id);
-                if (invoiceNos.length > 0) {
-                  await supabase.from('invoices')
-                    .update({ status: 'ยังไม่จ่าย' })
-                    .in('invoice_no', invoiceNos);
-                }
-              }, recNo, 'ใบเสร็จรับเงิน (receipts)');
-            }}
-          />
-        )}
+            {activeTab === 'expenses' && (
+              <ExpensesView 
+                expenses={state.expenses}
+                vehicles={state.vehicles}
+                drivers={state.drivers}
+                jobs={state.jobs}
+                onSaveExpense={(exp) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.expenses];
+                    const idx = list.findIndex(e => e.id === exp.id);
+                    if (idx > -1) {
+                      list[idx] = exp;
+                    } else {
+                      list.push(exp);
+                    }
+                    return { ...prev, expenses: list };
+                  });
+                  handleSupabaseSave(dbSaveExpense, exp, 'ค่าใช้จ่ายประจำวัน (daily_expenses)');
+                }}
+                onDeleteExpense={(id) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    expenses: prev.expenses.filter(e => e.id !== id)
+                  }));
+                  handleSupabaseDelete(dbDeleteExpense, id, 'ค่าใช้จ่ายประจำวัน (daily_expenses)');
+                }}
+              />
+            )}
 
-        {activeTab === 'registry' && (
-          <RegistryView 
-            customers={state.customers}
-            drivers={state.drivers}
-            vehicles={state.vehicles}
-            employees={state.employees}
-            onSaveCustomer={(cust) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.customers];
-                const index = list.findIndex(c => c.id === cust.id);
-                if (index > -1) list[index] = cust;
-                else list.push(cust);
-                return { ...prev, customers: list };
-              });
-              handleSupabaseSave(dbSaveCustomer, cust, 'ลูกค้า (customers)');
-            }}
-            onDeleteCustomer={(id) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                customers: prev.customers.filter(c => c.id !== id)
-              }));
-              handleSupabaseDelete(dbDeleteCustomer, id, 'ลูกค้า (customers)');
-            }}
-            onSaveDriver={async (drv) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.drivers];
-                const index = list.findIndex(d => d.id === drv.id);
-                if (index > -1) list[index] = drv;
-                else list.push(drv);
-                return { ...prev, drivers: list };
-              });
+            {/* Requirement 4: PartnerPaymentView */}
+            {activeTab === 'partner_payout' && (
+              <PartnerPaymentView
+                paymentDocs={state.partnerPaymentDocs || []}
+                jobs={state.jobs}
+                vehicles={state.vehicles}
+                drivers={state.drivers}
+                onSavePaymentDoc={(doc) => {
+                  updateStateAndPersist(prev => {
+                    const list = prev.partnerPaymentDocs ? [...prev.partnerPaymentDocs] : [];
+                    const idx = list.findIndex(d => d.id === doc.id);
+                    if (idx > -1) {
+                      list[idx] = doc;
+                    } else {
+                      list.push(doc);
+                    }
+                    return { ...prev, partnerPaymentDocs: list };
+                  });
+                }}
+                onDeletePaymentDoc={(id) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    partnerPaymentDocs: (prev.partnerPaymentDocs || []).filter(d => d.id !== id)
+                  }));
+                }}
+              />
+            )}
 
-              // Ensure the assigned vehicle is saved in Supabase first!
-              if (drv.vehicleLicense) {
-                const matchedVeh = state.vehicles.find(v => v.licensePlate === drv.vehicleLicense);
-                if (matchedVeh) {
-                  await handleSupabaseSave(dbSaveVehicle, matchedVeh, 'ยานพาหนะ (vehicles)');
-                }
-              }
+            {activeTab === 'invoices' && (
+              <InvoicesView 
+                invoices={state.invoices}
+                customers={state.customers}
+                jobs={state.jobs}
+                onSaveInvoice={(invoice) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.invoices];
+                    const idx = list.findIndex(inv => inv.invoiceNo === invoice.invoiceNo);
+                    if (idx > -1) {
+                      list[idx] = invoice;
+                    } else {
+                      list.push(invoice);
+                    }
 
-              handleSupabaseSave(dbSaveDriver, drv, 'คนขับ (drivers)');
-            }}
-            onDeleteDriver={(id) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                drivers: prev.drivers.filter(d => d.id !== id)
-              }));
-              handleSupabaseDelete(dbDeleteDriver, id, 'คนขับ (drivers)');
-            }}
-            onSaveVehicle={(veh) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.vehicles];
-                const index = list.findIndex(v => v.licensePlate === veh.licensePlate);
-                if (index > -1) list[index] = veh;
-                else list.push(veh);
-                return { ...prev, vehicles: list };
-              });
-              handleSupabaseSave(dbSaveVehicle, veh, 'ยานพาหนะ (vehicles)');
-            }}
-            onDeleteVehicle={(plate) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                vehicles: prev.vehicles.filter(v => v.licensePlate !== plate)
-              }));
-              handleSupabaseDelete(dbDeleteVehicle, plate, 'ยานพาหนะ (vehicles)');
-            }}
-            onSaveEmployee={(emp) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.employees];
-                const index = list.findIndex(e => e.id === emp.id);
-                if (index > -1) list[index] = emp;
-                else list.push(emp);
-                return { ...prev, employees: list };
-              });
-              handleSupabaseSave(dbSaveEmployee, emp, 'พนักงาน (employees)');
-            }}
-            onDeleteEmployee={(id) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                employees: prev.employees.filter(e => e.id !== id)
-              }));
-              handleSupabaseDelete(dbDeleteEmployee, id, 'พนักงาน (employees)');
-            }}
-          />
-        )}
+                    // If invoice maps to a job, we can set that Job status instantly!
+                    const updatedJobs = prev.jobs.map(job => {
+                      if (job.jobNo === invoice.jobNo) {
+                        return { ...job, status: 'วางบิลแล้ว' as const };
+                      }
+                      return job;
+                    });
 
-        {activeTab === 'finance' && (
-          <FinanceView 
-            partnerPayments={state.partnerPayments}
-            withholdingTaxes={state.withholdingTaxes}
-            payroll={state.payroll}
-            invoices={state.invoices}
-            expenses={state.expenses}
-            drivers={state.drivers}
-            employees={state.employees}
-            onSavePartnerPayment={(ppm) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.partnerPayments];
-                const index = list.findIndex(p => p.id === ppm.id);
-                if (index > -1) list[index] = ppm;
-                else list.push(ppm);
-                return { ...prev, partnerPayments: list };
-              });
-              handleSupabaseSave(dbSavePartnerPayment, ppm, 'จ่ายรถร่วม (partner_payments)');
-            }}
-            onDeletePartnerPayment={(id) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                partnerPayments: prev.partnerPayments.filter(p => p.id !== id)
-              }));
-              handleSupabaseDelete(dbDeletePartnerPayment, id, 'จ่ายรถร่วม (partner_payments)');
-            }}
-            onSaveWithholdingTax={(wht) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.withholdingTaxes];
-                const index = list.findIndex(w => w.id === wht.id);
-                if (index > -1) list[index] = wht;
-                else list.push(wht);
-                return { ...prev, withholdingTaxes: list };
-              });
-              handleSupabaseSave(dbSaveWithholdingTax, wht, 'ภาษีหัก ณ ที่จ่าย (withholding_taxes)');
-            }}
-            onDeleteWithholdingTax={(id) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                withholdingTaxes: prev.withholdingTaxes.filter(w => w.id !== id)
-              }));
-              handleSupabaseDelete(dbDeleteWithholdingTax, id, 'ภาษีหัก ณ ที่จ่าย (withholding_taxes)');
-            }}
-            onSavePayroll={(pr) => {
-              updateStateAndPersist(prev => {
-                const list = [...prev.payroll];
-                const index = list.findIndex(p => p.id === pr.id);
-                if (index > -1) list[index] = pr;
-                else list.push(pr);
-                return { ...prev, payroll: list };
-              });
-              handleSupabaseSave(dbSavePayroll, pr, 'เงินเดือน (payroll)');
-            }}
-            onDeletePayroll={(id) => {
-              updateStateAndPersist(prev => ({
-                ...prev,
-                payroll: prev.payroll.filter(p => p.id !== id)
-              }));
-              handleSupabaseDelete(dbDeletePayroll, id, 'เงินเดือน (payroll)');
-            }}
-          />
-        )}
+                    return { ...prev, invoices: list, jobs: updatedJobs };
+                  });
+                  handleSupabaseSave(dbSaveInvoice, invoice, 'ใบแจ้งหนี้ (invoices)');
+                }}
+                onDeleteInvoice={(invNo) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    invoices: prev.invoices.filter(i => i.invoiceNo !== invNo)
+                  }));
+                  handleSupabaseDelete(dbDeleteInvoice, invNo, 'ใบแจ้งหนี้ (invoices)');
+                }}
+              />
+            )}
 
-        {activeTab === 'reports' && (
-          <ReportsView 
-            jobs={state.jobs}
-            expenses={state.expenses}
-            invoices={state.invoices}
-            receipts={state.receipts}
-            drivers={state.drivers}
-            vehicles={state.vehicles}
-            customers={state.customers}
-            partnerPayments={state.partnerPayments}
-            payroll={state.payroll}
-            employees={state.employees}
-          />
-        )}
+            {activeTab === 'receipts' && (
+              <ReceiptsView 
+                receipts={state.receipts}
+                invoices={state.invoices}
+                customers={state.customers}
+                onSaveReceipt={(receipt) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.receipts];
+                    const idx = list.findIndex(r => r.receiptNo === receipt.receiptNo);
+                    if (idx > -1) {
+                      list[idx] = receipt;
+                    } else {
+                      list.push(receipt);
+                    }
+
+                    // Update original invoice statuses to 'Paid' / 'จ่ายแล้ว'
+                    const invoiceNosToPay = receipt.invoiceNo.split(',').map(s => s.trim()).filter(Boolean);
+                    const updatedInv = prev.invoices.map(inv => {
+                      if (invoiceNosToPay.includes(inv.invoiceNo)) {
+                        return { ...inv, status: 'จ่ายแล้ว' as const };
+                      }
+                      return inv;
+                    });
+
+                    return { ...prev, receipts: list, invoices: updatedInv };
+                  });
+                  handleSupabaseSave(dbSaveReceipt, receipt, 'ใบเสร็จรับเงิน (receipts)');
+                }}
+                onDeleteReceipt={(recNo) => {
+                  const rec = state.receipts.find(r => r.receiptNo === recNo);
+                  const invoiceNos = rec ? rec.invoiceNo.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+                  updateStateAndPersist(prev => {
+                    const deletedReceipt = prev.receipts.find(r => r.receiptNo === recNo);
+                    let updatedInv = prev.invoices;
+                    if (deletedReceipt) {
+                      const invoiceNosToUnpay = deletedReceipt.invoiceNo.split(',').map(s => s.trim()).filter(Boolean);
+                      updatedInv = prev.invoices.map(inv => {
+                        if (invoiceNosToUnpay.includes(inv.invoiceNo)) {
+                          return { ...inv, status: 'ยังไม่จ่าย' as const };
+                        }
+                        return inv;
+                      });
+                    }
+                    return {
+                      ...prev,
+                      receipts: prev.receipts.filter(r => r.receiptNo !== recNo),
+                      invoices: updatedInv
+                    };
+                  });
+
+                  handleSupabaseDelete(async (id) => {
+                    await dbDeleteReceipt(id);
+                    if (invoiceNos.length > 0) {
+                      await supabase.from('invoices')
+                        .update({ status: 'ยังไม่จ่าย' })
+                        .in('invoice_no', invoiceNos);
+                    }
+                  }, recNo, 'ใบเสร็จรับเงิน (receipts)');
+                }}
+              />
+            )}
+
+            {activeTab === 'registry' && (
+              <RegistryView 
+                customers={state.customers}
+                drivers={state.drivers}
+                vehicles={state.vehicles}
+                employees={state.employees}
+                onSaveCustomer={(cust) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.customers];
+                    const index = list.findIndex(c => c.id === cust.id);
+                    if (index > -1) list[index] = cust;
+                    else list.push(cust);
+                    return { ...prev, customers: list };
+                  });
+                  handleSupabaseSave(dbSaveCustomer, cust, 'ลูกค้า (customers)');
+                }}
+                onDeleteCustomer={(id) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    customers: prev.customers.filter(c => c.id !== id)
+                  }));
+                  handleSupabaseDelete(dbDeleteCustomer, id, 'ลูกค้า (customers)');
+                }}
+                onSaveDriver={async (drv) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.drivers];
+                    const index = list.findIndex(d => d.id === drv.id);
+                    if (index > -1) list[index] = drv;
+                    else list.push(drv);
+                    return { ...prev, drivers: list };
+                  });
+
+                  // Ensure the assigned vehicle is saved in Supabase first!
+                  if (drv.vehicleLicense) {
+                    const matchedVeh = state.vehicles.find(v => v.licensePlate === drv.vehicleLicense);
+                    if (matchedVeh) {
+                      await handleSupabaseSave(dbSaveVehicle, matchedVeh, 'ยานพาหนะ (vehicles)');
+                    }
+                  }
+
+                  handleSupabaseSave(dbSaveDriver, drv, 'คนขับ (drivers)');
+                }}
+                onDeleteDriver={(id) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    drivers: prev.drivers.filter(d => d.id !== id)
+                  }));
+                  handleSupabaseDelete(dbDeleteDriver, id, 'คนขับ (drivers)');
+                }}
+                onSaveVehicle={(veh) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.vehicles];
+                    const index = list.findIndex(v => v.licensePlate === veh.licensePlate);
+                    if (index > -1) list[index] = veh;
+                    else list.push(veh);
+                    return { ...prev, vehicles: list };
+                  });
+                  handleSupabaseSave(dbSaveVehicle, veh, 'ยานพาหนะ (vehicles)');
+                }}
+                onDeleteVehicle={(plate) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    vehicles: prev.vehicles.filter(v => v.licensePlate !== plate)
+                  }));
+                  handleSupabaseDelete(dbDeleteVehicle, plate, 'ยานพาหนะ (vehicles)');
+                }}
+                onSaveEmployee={(emp) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.employees];
+                    const index = list.findIndex(e => e.id === emp.id);
+                    if (index > -1) list[index] = emp;
+                    else list.push(emp);
+                    return { ...prev, employees: list };
+                  });
+                  handleSupabaseSave(dbSaveEmployee, emp, 'พนักงาน (employees)');
+                }}
+                onDeleteEmployee={(id) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    employees: prev.employees.filter(e => e.id !== id)
+                  }));
+                  handleSupabaseDelete(dbDeleteEmployee, id, 'พนักงาน (employees)');
+                }}
+              />
+            )}
+
+            {activeTab === 'finance' && (
+              <FinanceView 
+                partnerPayments={state.partnerPayments}
+                withholdingTaxes={state.withholdingTaxes}
+                payroll={state.payroll}
+                invoices={state.invoices}
+                expenses={state.expenses}
+                drivers={state.drivers}
+                employees={state.employees}
+                onSavePartnerPayment={(ppm) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.partnerPayments];
+                    const index = list.findIndex(p => p.id === ppm.id);
+                    if (index > -1) list[index] = ppm;
+                    else list.push(ppm);
+                    return { ...prev, partnerPayments: list };
+                  });
+                  handleSupabaseSave(dbSavePartnerPayment, ppm, 'จ่ายรถร่วม (partner_payments)');
+                }}
+                onDeletePartnerPayment={(id) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    partnerPayments: prev.partnerPayments.filter(p => p.id !== id)
+                  }));
+                  handleSupabaseDelete(dbDeletePartnerPayment, id, 'จ่ายรถร่วม (partner_payments)');
+                }}
+                onSaveWithholdingTax={(wht) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.withholdingTaxes];
+                    const index = list.findIndex(w => w.id === wht.id);
+                    if (index > -1) list[index] = wht;
+                    else list.push(wht);
+                    return { ...prev, withholdingTaxes: list };
+                  });
+                  handleSupabaseSave(dbSaveWithholdingTax, wht, 'ภาษีหัก ณ ที่จ่าย (withholding_taxes)');
+                }}
+                onDeleteWithholdingTax={(id) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    withholdingTaxes: prev.withholdingTaxes.filter(w => w.id !== id)
+                  }));
+                  handleSupabaseDelete(dbDeleteWithholdingTax, id, 'ภาษีหัก ณ ที่จ่าย (withholding_taxes)');
+                }}
+                onSavePayroll={(pr) => {
+                  updateStateAndPersist(prev => {
+                    const list = [...prev.payroll];
+                    const index = list.findIndex(p => p.id === pr.id);
+                    if (index > -1) list[index] = pr;
+                    else list.push(pr);
+                    return { ...prev, payroll: list };
+                  });
+                  handleSupabaseSave(dbSavePayroll, pr, 'เงินเดือน (payroll)');
+                }}
+                onDeletePayroll={(id) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    payroll: prev.payroll.filter(p => p.id !== id)
+                  }));
+                  handleSupabaseDelete(dbDeletePayroll, id, 'เงินเดือน (payroll)');
+                }}
+              />
+            )}
+
+            {/* Requirement 2: Manager Entry */}
+            {activeTab === 'manager_entry' && (
+              <ManagerEntryView
+                entries={state.managerEntries || []}
+                onSaveEntry={(entry) => {
+                  updateStateAndPersist(prev => {
+                    const list = prev.managerEntries ? [...prev.managerEntries] : [];
+                    const idx = list.findIndex(e => e.id === entry.id);
+                    if (idx > -1) {
+                      list[idx] = entry;
+                    } else {
+                      list.push(entry);
+                    }
+                    return { ...prev, managerEntries: list };
+                  });
+                }}
+                onDeleteEntry={(id) => {
+                  updateStateAndPersist(prev => ({
+                    ...prev,
+                    managerEntries: (prev.managerEntries || []).filter(e => e.id !== id)
+                  }));
+                }}
+              />
+            )}
+
+            {/* Requirement 3: ReportsView */}
+            {activeTab === 'reports' && (
+              <ReportsView 
+                jobs={state.jobs}
+                expenses={state.expenses}
+                vehicles={state.vehicles}
+                drivers={state.drivers}
+                customers={state.customers}
+                managerEntries={state.managerEntries}
+                partnerPaymentDocs={state.partnerPaymentDocs}
+              />
+            )}
 
             {activeTab === 'manual' && (
               <ManualView />

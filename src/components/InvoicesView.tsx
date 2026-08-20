@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { 
   Plus, Edit2, Trash2, Search, X, FileText, Printer, Save, 
-  HelpCircle, Layers, Check, Calculator, ChevronRight
+  HelpCircle, Layers, Check, Calculator, ChevronRight, PlusCircle
 } from 'lucide-react';
-import { Invoice, Customer, TransportJob, ContainerDetail, AdvanceItem } from '../types';
+import { Invoice, Customer, TransportJob, ContainerDetail, AdvanceItem, ExtraInvoiceItem } from '../types';
 import { arabicToThaiBaht, formatCurrency, getStatusStyle } from '../utils';
 
 function formatInvoiceDate(dateStr: string) {
@@ -18,7 +18,12 @@ function formatInvoiceDate(dateStr: string) {
   return dateStr;
 }
 
-export function calculateInvoiceTotals(invoiceType: 'Transport' | 'Advance', containers: ContainerDetail[], advanceItems: AdvanceItem[]) {
+export function calculateInvoiceTotals(
+  invoiceType: 'Transport' | 'Advance', 
+  containers: ContainerDetail[], 
+  advanceItems: AdvanceItem[],
+  extraItems?: ExtraInvoiceItem[]
+) {
   let subtotal = 0;
   let withholdingTax = 0;
   let vatAmount = 0;
@@ -29,6 +34,7 @@ export function calculateInvoiceTotals(invoiceType: 'Transport' | 'Advance', con
     let overtimeSum = 0;
     let xraySum = 0;
     let otherSum = 0;
+    let extraItemsSum = 0;
 
     containers.forEach(c => {
       transportSum += c.transportation || 0;
@@ -71,15 +77,28 @@ export function calculateInvoiceTotals(invoiceType: 'Transport' | 'Advance', con
       }
     });
 
-    subtotal = transportSum + overtimeSum + xraySum + otherSum;
-    withholdingTax = Math.round((transportSum + overtimeSum + xraySum) * 0.01 * 100) / 100;
+    if (extraItems && extraItems.length > 0) {
+      extraItems.forEach(item => {
+        extraItemsSum += item.amount || 0;
+      });
+    }
+
+    subtotal = transportSum + overtimeSum + xraySum + otherSum + extraItemsSum;
+    // หัก 1% อัตโนมัติ เช่นเดียวกับค่าขนส่งและค่าบริการ
+    withholdingTax = Math.round((subtotal) * 0.01 * 100) / 100;
     vatAmount = 0;
-    grandTotal = subtotal - withholdingTax;
+    grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
   } else {
-    subtotal = advanceItems.reduce((sum, item) => sum + item.amount, 0);
+    let extraItemsSum = 0;
+    if (extraItems && extraItems.length > 0) {
+      extraItems.forEach(item => {
+        extraItemsSum += item.amount || 0;
+      });
+    }
+    subtotal = advanceItems.reduce((sum, item) => sum + item.amount, 0) + extraItemsSum;
     withholdingTax = 0;
     vatAmount = Math.round(subtotal * 0.07 * 100) / 100;
-    grandTotal = subtotal + vatAmount;
+    grandTotal = Math.round((subtotal + vatAmount) * 100) / 100;
   }
 
   return { subtotal, withholdingTax, vatAmount, grandTotal };
@@ -114,6 +133,9 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
   // Custom list of advance payment items
   const [advanceItems, setAdvanceItems] = useState<AdvanceItem[]>([]);
 
+  // รายการเพิ่มเติม (Custom Extra Items: ชื่อรายการ, จำนวน, ราคา/หน่วย, คำนวณรวมอัตโนมัติ, หัก 1% อัตโนมัติ)
+  const [extraItems, setExtraItems] = useState<ExtraInvoiceItem[]>([]);
+
   // Filter and Search
   const filteredInvoices = invoices.filter(i => 
     i.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -137,6 +159,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
     setShipper('');
     setContainers([]);
     setAdvanceItems([{ id: 'ADV-I-001', description: 'ค่าผ่านประตูท่าเรือแหลมฉบัง LCB', amount: 1200 }]);
+    setExtraItems([]);
   };
 
   const handleDateChange = (newDate: string) => {
@@ -185,6 +208,34 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
     setAdvanceItems(updated);
   };
 
+  // Extra items handlers
+  const handleAddExtraItem = () => {
+    const nextId = `EXT-${Date.now()}-${extraItems.length + 1}`;
+    setExtraItems([...extraItems, { id: nextId, name: '', qty: 1, rate: 0, amount: 0 }]);
+  };
+
+  const handleRemoveExtraItem = (index: number) => {
+    setExtraItems(extraItems.filter((_, i) => i !== index));
+  };
+
+  const updateExtraItemField = (index: number, field: 'name' | 'qty' | 'rate', value: any) => {
+    const updated = [...extraItems];
+    const current = { ...updated[index] };
+    if (field === 'name') {
+      current.name = value;
+    } else if (field === 'qty') {
+      const q = parseFloat(value) || 0;
+      current.qty = q;
+      current.amount = Math.round(q * (current.rate || 0) * 100) / 100;
+    } else if (field === 'rate') {
+      const r = parseFloat(value) || 0;
+      current.rate = r;
+      current.amount = Math.round((current.qty || 1) * r * 100) / 100;
+    }
+    updated[index] = current;
+    setExtraItems(updated);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedCust = customers.find(c => c.id === customerId);
@@ -198,7 +249,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
     let vatAmount = 0;
     let grandTotal = 0;
 
-    const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems);
+    const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems, extraItems);
     subtotal = totals.subtotal;
     withholdingTax = totals.withholdingTax;
     vatAmount = totals.vatAmount;
@@ -221,6 +272,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
       shipper,
       containers: invoiceType === 'Transport' ? containers : [],
       advanceItems: invoiceType === 'Advance' ? advanceItems : [],
+      extraItems: extraItems.filter(item => item.name.trim() !== '' || item.amount > 0),
       subtotal,
       withholdingTax,
       vatAmount,
@@ -237,6 +289,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
   const handlePrint = () => {
     window.print();
   };
+
 
   return (
     <div className="space-y-4">
@@ -353,6 +406,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                                 setShipper(inv.shipper || '');
                                 setContainers(inv.containers || []);
                                 setAdvanceItems(inv.advanceItems || []);
+                                setExtraItems(inv.extraItems || []);
                                 setIsFormOpen(true);
                               }}
                               className="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 p-1 rounded-lg transition-colors"
@@ -767,9 +821,112 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
               </div>
             )}
 
+            {/* Extra Items Section (ช่องรายการเพิ่มเติม: พิมพ์ชื่อรายการเอง, กรอกจำนวน, กรอกราคา/หน่วย, คำนวณรวมอัตโนมัติ, หัก 1% อัตโนมัติ) */}
+            <div className="space-y-4 border-t border-slate-200 pt-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                    <PlusCircle className="text-indigo-600 w-4 h-4" />
+                    รายการเพิ่มเติม (Additional Custom Items)
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    พิมพ์ชื่อรายการเอง กรอกจำนวน และราคา/หน่วย ระบบจะคำนวณยอดรวมและหัก 1% อัตโนมัติ (เช่นเดียวกับค่าขนส่ง)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddExtraItem}
+                  className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs py-1.5 px-3 rounded-lg border border-indigo-200 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  + เพิ่มช่องรายการเพิ่มเติม
+                </button>
+              </div>
+
+              {extraItems.length === 0 ? (
+                <div className="bg-slate-50/70 border border-dashed border-slate-300 rounded-xl p-4 text-center text-xs text-slate-500">
+                  ไม่มีรายการเพิ่มเติม (คลิกปุ่ม <strong>"+ เพิ่มช่องรายการเพิ่มเติม"</strong> ด้านบน หากต้องการเพิ่มรายการบริการ ค่าล่วงเวลา หรือค่าใช้จ่ายเฉพาะ)
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {extraItems.map((item, idx) => (
+                    <div 
+                      key={item.id || idx} 
+                      className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 relative items-end"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExtraItem(idx)}
+                        className="absolute right-2 top-2 text-red-500 hover:text-red-700 bg-white border border-slate-200 p-1 rounded-md shadow-xs transition-colors"
+                        title="ลบรายการนี้"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <div className="sm:col-span-5">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          ชื่อรายการ (Description)
+                        </label>
+                        <input 
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => updateExtraItemField(idx, 'name', e.target.value)}
+                          placeholder="เช่น ค่าบริการควงตู้, ค่าฝากตู้ล่วงเวลา, ค่าทำความสะอาดตู้ ฯลฯ"
+                          className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-sans"
+                          required
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          จำนวน (Qty)
+                        </label>
+                        <input 
+                          type="number"
+                          min="0.01"
+                          step="any"
+                          value={item.qty || ''}
+                          onChange={(e) => updateExtraItemField(idx, 'qty', e.target.value)}
+                          placeholder="1"
+                          className="w-full text-xs font-mono font-bold bg-white text-slate-900 text-center border border-slate-300 rounded-lg p-2.5 outline-none focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          ราคา/หน่วย (Unit Price)
+                        </label>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.rate || ''}
+                          onChange={(e) => updateExtraItemField(idx, 'rate', e.target.value)}
+                          placeholder="0.00"
+                          className="w-full text-xs font-mono font-bold bg-white text-slate-900 text-right border border-slate-300 rounded-lg p-2.5 outline-none focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3 bg-white p-2 rounded-lg border border-slate-200">
+                        <div className="flex justify-between items-center text-[10px] text-slate-500">
+                          <span>ยอดรวมคำนวณ:</span>
+                          <span className="text-indigo-600 font-bold">หัก 1% (-{formatCurrency(Math.round(item.amount * 0.01 * 100) / 100)})</span>
+                        </div>
+                        <div className="text-right text-sm font-mono font-extrabold text-slate-900">
+                          {formatCurrency(item.amount)} <span className="text-xs font-normal text-slate-500">บาท</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Calculations Summary Section */}
             {(() => {
-              const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems);
+              const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems, extraItems);
               return (
                 <div className="bg-slate-950 text-white p-5 rounded-xl border border-slate-800 flex justify-end">
                   <div className="w-full sm:w-80 space-y-2 text-xs">
@@ -1081,6 +1238,22 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                         </React.Fragment>
                       );
                     })}
+
+                    {/* Render Extra Items for Transport Invoices */}
+                    {previewInvoice.extraItems && previewInvoice.extraItems.map((ext, extIdx) => (
+                      <tr key={`ext-${extIdx}`} className="font-sans border-t border-slate-200 bg-slate-50/30">
+                        <td className="p-2 text-center text-slate-700 font-bold">
+                          {previewInvoice.containers.length + extIdx + 1}
+                        </td>
+                        <td className="p-2 font-bold text-slate-900">
+                          {ext.name}
+                          <span className="text-[10px] font-normal text-slate-500 ml-2 italic">(รายการเพิ่มเติม)</span>
+                        </td>
+                        <td className="p-2 text-center text-[10px]">{ext.qty || 1}</td>
+                        <td className="p-2 text-right">{formatCurrency(ext.rate)}</td>
+                        <td className="p-2 text-right font-bold text-slate-950">{formatCurrency(ext.amount)}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               ) : (
@@ -1121,6 +1294,20 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                         <td className="p-2.5 text-center text-[10px]">1</td>
                         <td className="p-2.5 text-right">{formatCurrency(item.amount)}</td>
                         <td className="p-2.5 text-right font-bold text-slate-900">{formatCurrency(item.amount)}</td>
+                      </tr>
+                    ))}
+
+                    {/* Render Extra Items for Advance Invoices */}
+                    {previewInvoice.extraItems && previewInvoice.extraItems.map((ext, extIdx) => (
+                      <tr key={`ext-adv-${extIdx}`} className="text-slate-800 font-sans border-t border-slate-200 bg-slate-50/30">
+                        <td className="p-2.5 text-center">{previewInvoice.advanceItems.length + extIdx + 1}</td>
+                        <td className="p-2.5 font-medium">
+                          {ext.name}
+                          <span className="text-[10px] font-normal text-slate-500 ml-2 italic">(รายการเพิ่มเติม)</span>
+                        </td>
+                        <td className="p-2.5 text-center text-[10px]">{ext.qty || 1}</td>
+                        <td className="p-2.5 text-right">{formatCurrency(ext.rate)}</td>
+                        <td className="p-2.5 text-right font-bold text-slate-900">{formatCurrency(ext.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
