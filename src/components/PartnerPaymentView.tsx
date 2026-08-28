@@ -5,7 +5,7 @@ import {
   Download, ArrowLeft, Layers, ShieldCheck, AlertCircle
 } from 'lucide-react';
 import { SubcontractorPaymentDoc, SubcontractorTripItem, TransportJob, Vehicle, Driver } from '../types';
-import { formatCurrency, arabicToThaiBaht } from '../utils';
+import { formatCurrency, arabicToThaiBaht, formatDate } from '../utils';
 
 interface PartnerPaymentViewProps {
   paymentDocs: SubcontractorPaymentDoc[];
@@ -377,7 +377,7 @@ export function PartnerPaymentView({
                       <tr key={doc.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-3 text-center font-mono text-slate-400">{idx + 1}</td>
                         <td className="p-3 font-mono font-bold text-indigo-700">{doc.paymentNo}</td>
-                        <td className="p-3 text-center font-mono text-slate-500">{doc.date}</td>
+                        <td className="p-3 text-center font-mono text-slate-700 font-semibold">{formatDate(doc.date)}</td>
                         <td className="p-3 font-semibold text-slate-900">{doc.partnerName}</td>
                         <td className="p-3 text-center">
                           <span className="bg-slate-100 text-slate-800 font-mono font-bold px-2 py-0.5 rounded border border-slate-200 text-[11px]">
@@ -480,7 +480,12 @@ export function PartnerPaymentView({
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 block">วันที่ทำจ่าย</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 block">วันที่ทำจ่าย</label>
+                  <span className="text-[11px] font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                    {formatDate(date)}
+                  </span>
+                </div>
                 <input
                   type="date"
                   value={date}
@@ -582,14 +587,14 @@ export function PartnerPaymentView({
                     <thead className="sticky top-0 bg-slate-100 text-slate-700 border-b border-slate-200 font-bold text-[11px] z-10">
                       <tr>
                         <th className="p-2 text-center w-10">No.</th>
-                        <th className="p-2 w-28">Date</th>
-                        <th className="p-2 min-w-[140px]">Shiper</th>
-                        <th className="p-2 min-w-[130px]">Booking No.</th>
-                        <th className="p-2 w-24">Type</th>
-                        <th className="p-2 min-w-[140px]">Container no.</th>
-                        <th className="p-2 w-28 text-right">Price (ราคา)</th>
-                        <th className="p-2 w-24 text-right">OT</th>
-                        <th className="p-2 min-w-[120px]">Remark</th>
+                        <th className="p-2 text-center w-28">Date</th>
+                        <th className="p-2 text-center min-w-[140px]">Shiper</th>
+                        <th className="p-2 text-center min-w-[130px]">Booking No.</th>
+                        <th className="p-2 text-center w-24">Type</th>
+                        <th className="p-2 text-center min-w-[140px]">Container no.</th>
+                        <th className="p-2 text-center w-28">Price</th>
+                        <th className="p-2 text-center w-24">OT</th>
+                        <th className="p-2 text-center min-w-[120px]">Remark</th>
                         <th className="p-2 text-center w-10"></th>
                       </tr>
                     </thead>
@@ -906,7 +911,7 @@ export function PartnerPaymentView({
               </div>
               <div className="flex items-center">
                 <span className="w-24 font-bold text-slate-900">วันที่ทำจ่าย :</span>
-                <span className="font-mono text-slate-800">{previewDoc.date}</span>
+                <span className="font-mono font-bold text-slate-950">{formatDate(previewDoc.date)}</span>
               </div>
             </div>
 
@@ -915,22 +920,22 @@ export function PartnerPaymentView({
               <table className="w-full text-left border-collapse border border-slate-400 text-[10px] font-sans">
                 <thead>
                   <tr className="bg-slate-100 text-slate-900 border-b border-slate-400 font-bold text-center">
-                    <th className="border border-slate-400 p-1 w-8">No.</th>
-                    <th className="border border-slate-400 p-1 w-16">Date</th>
-                    <th className="border border-slate-400 p-1 min-w-[100px] text-left">Shiper</th>
-                    <th className="border border-slate-400 p-1 min-w-[90px] text-left">Booking No.</th>
-                    <th className="border border-slate-400 p-1 w-12">Type</th>
-                    <th className="border border-slate-400 p-1 min-w-[100px] text-left">Container no.</th>
-                    <th className="border border-slate-400 p-1 w-16 text-right">Price</th>
-                    <th className="border border-slate-400 p-1 w-14 text-right">OT</th>
-                    <th className="border border-slate-400 p-1 min-w-[80px] text-left">Remark</th>
+                    <th className="border border-slate-400 p-1 w-8 text-center">No.</th>
+                    <th className="border border-slate-400 p-1 w-16 text-center">Date</th>
+                    <th className="border border-slate-400 p-1 min-w-[100px] text-center">Shiper</th>
+                    <th className="border border-slate-400 p-1 min-w-[90px] text-center">Booking No.</th>
+                    <th className="border border-slate-400 p-1 w-12 text-center">Type</th>
+                    <th className="border border-slate-400 p-1 min-w-[100px] text-center">Container no.</th>
+                    <th className="border border-slate-400 p-1 w-16 text-center">Price</th>
+                    <th className="border border-slate-400 p-1 w-14 text-center">OT</th>
+                    <th className="border border-slate-400 p-1 min-w-[80px] text-center">Remark</th>
                   </tr>
                 </thead>
                 <tbody>
                   {previewDoc.trips.map((trip, idx) => (
                     <tr key={idx} className="border-b border-slate-300">
                       <td className="border border-slate-300 p-1 text-center font-mono">{idx + 1}</td>
-                      <td className="border border-slate-300 p-1 text-center font-mono">{trip.date}</td>
+                      <td className="border border-slate-300 p-1 text-center font-mono">{formatDate(trip.date)}</td>
                       <td className="border border-slate-300 p-1 font-medium">{trip.shipper || '-'}</td>
                       <td className="border border-slate-300 p-1 font-mono">{trip.bookingNo || '-'}</td>
                       <td className="border border-slate-300 p-1 text-center">{trip.type || "40'"}</td>

@@ -5,7 +5,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { ManagerEntry } from '../types';
-import { formatCurrency } from '../utils';
+import { formatCurrency, formatDate } from '../utils';
 
 interface ManagerEntryViewProps {
   entries: ManagerEntry[];
@@ -279,7 +279,7 @@ export function ManagerEntryView({ entries, onSaveEntry, onDeleteEntry }: Manage
                 filteredEntries.map((entry, idx) => (
                   <tr key={entry.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="p-3 text-center font-mono text-slate-400">{idx + 1}</td>
-                    <td className="p-3 text-center font-mono text-slate-600">{entry.date}</td>
+                    <td className="p-3 text-center font-mono text-slate-700 font-medium">{formatDate(entry.date)}</td>
                     <td className="p-3 text-center">
                       {entry.type === 'INCOME' ? (
                         <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold">

@@ -10,7 +10,7 @@ import {
   DailyExpense, Invoice, Receipt, PartnerPayment, 
   ManagerEntry, SubcontractorPaymentDoc
 } from '../types';
-import { formatCurrency, getStatusStyle } from '../utils';
+import { formatCurrency, getStatusStyle, formatDate } from '../utils';
 
 interface ReportsViewProps {
   jobs: TransportJob[];
@@ -477,7 +477,7 @@ export function ReportsView({
                     filteredTrips.map((trip, idx) => (
                       <tr key={trip.id || idx} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-3 text-center font-mono text-slate-400">{idx + 1}</td>
-                        <td className="p-3 text-center font-mono text-slate-600 whitespace-nowrap">{trip.date}</td>
+                        <td className="p-3 text-center font-mono text-slate-700 font-semibold whitespace-nowrap">{formatDate(trip.date)}</td>
                         <td className="p-3 font-mono font-bold text-indigo-700 whitespace-nowrap">{trip.jobNo}</td>
                         <td className="p-3 text-center whitespace-nowrap">
                           <span className="bg-slate-100 text-slate-900 font-bold font-mono px-2 py-0.5 rounded border border-slate-200 text-[11px]">

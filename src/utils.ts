@@ -100,6 +100,26 @@ export function formatCurrency(value: number): string {
 }
 
 /**
+ * Format a date string (YYYY-MM-DD or ISO) into standard DD/MM/YYYY
+ * Example: "2026-08-28" -> "28/08/2026"
+ */
+export function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return '-';
+  const clean = String(dateStr).split('T')[0].trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(clean)) {
+    return clean;
+  }
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const month = parts[1].padStart(2, '0');
+    const day = parts[2].padStart(2, '0');
+    return `${day}/${month}/${year}`;
+  }
+  return clean;
+}
+
+/**
  * Helper to get status bar color in Google Sheet style
  */
 export function getStatusStyle(status: string): string {
