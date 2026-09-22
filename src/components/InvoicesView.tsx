@@ -4,7 +4,7 @@ import {
   HelpCircle, Layers, Check, Calculator, ChevronRight, PlusCircle
 } from 'lucide-react';
 import { Invoice, Customer, TransportJob, ContainerDetail, AdvanceItem, ExtraInvoiceItem } from '../types';
-import { arabicToThaiBaht, formatCurrency, getStatusStyle } from '../utils';
+import { arabicToThaiBaht, formatCurrency, getStatusStyle, generateMonthlyInvoiceNo } from '../utils';
 
 function formatInvoiceDate(dateStr: string) {
   if (!dateStr) return '';
@@ -148,10 +148,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
     setIsEditMode(false);
     const today = new Date().toISOString().split('T')[0];
     setDate(today);
-    const parts = today.split('-');
-    const year = parts[0] || String(new Date().getFullYear());
-    const month = parts[1] || String(new Date().getMonth() + 1).padStart(2, '0');
-    setInvoiceNo(`KTT-${year}-${month}-${String(invoices.length + 1).padStart(4, '0')}`);
+    setInvoiceNo(generateMonthlyInvoiceNo(today, invoices));
     setCustomerId(customers[0]?.id || '');
     setJobNo('');
     setInvoiceType('Transport');
@@ -165,10 +162,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
   const handleDateChange = (newDate: string) => {
     setDate(newDate);
     if (!isEditMode) {
-      const parts = newDate.split('-');
-      const year = parts[0] || String(new Date().getFullYear());
-      const month = parts[1] || String(new Date().getMonth() + 1).padStart(2, '0');
-      setInvoiceNo(`KTT-${year}-${month}-${String(invoices.length + 1).padStart(4, '0')}`);
+      setInvoiceNo(generateMonthlyInvoiceNo(newDate, invoices));
     }
   };
 
@@ -184,7 +178,10 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
       setCustomerId(job.customerId);
       setBookingNo(job.bookingNo);
       setShipper(job.shipper);
-      setContainers(job.containers.map(c => ({ ...c })));
+      setContainers(job.containers.map((c, cIdx) => ({ 
+        ...c,
+        driverName: c.driverName || (job.driverNames && job.driverNames.length > 0 ? (job.driverNames[cIdx] || job.driverNames[0]) : job.driverName) || ''
+      })));
     }
   };
 
@@ -594,7 +591,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div>
                             <label className="text-[10px] font-bold text-slate-600 block mb-0.5">ตู้คอนเทนเนอร์ No</label>
                             <input 
@@ -605,9 +602,23 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                                 list[idx].containerNo = e.target.value;
                                 setContainers(list);
                               }}
-                              placeholder="ตู้ที่..."
+                              placeholder="เช่น MSKU820129-9..."
                               className="bg-white w-full text-xs font-mono font-bold border border-slate-200 rounded p-2 outline-none"
                               required
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">พนักงานขับรถ (Driver ประจำตู้)</label>
+                            <input 
+                              type="text" 
+                              value={c.driverName || ''}
+                              onChange={(e) => {
+                                const list = [...containers];
+                                list[idx].driverName = e.target.value;
+                                setContainers(list);
+                              }}
+                              placeholder="ระบุชื่อคนขับ หรือดึงจากงาน..."
+                              className="bg-white w-full text-xs font-sans border border-slate-200 rounded p-2 outline-none text-slate-800"
                             />
                           </div>
                           <div>
@@ -1217,7 +1228,12 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                           <tr className="font-bold border-none">
                             <td className="p-2 text-center text-slate-700 font-sans">{containerIndex + 1}</td>
                             <td className="p-2 font-semibold text-slate-950 font-sans">
-                              Cntr no. &nbsp;&nbsp;&nbsp;&nbsp; {c.containerNo || '-'}
+                              <div>Cntr no. &nbsp;&nbsp;&nbsp;&nbsp; {c.containerNo || '-'}</div>
+                              {c.driverName && (
+                                <div className="text-[10px] text-slate-600 font-normal pl-2 font-sans mt-0.5">
+                                  พนักงานขับรถ: {c.driverName}
+                                </div>
+                              )}
                             </td>
                             <td className="p-2 text-center"></td>
                             <td className="p-2 text-right"></td>

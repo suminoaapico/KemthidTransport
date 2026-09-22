@@ -50,6 +50,8 @@ export interface ContainerExpense {
 
 export interface ContainerDetail {
   containerNo: string;
+  driverName?: string;
+  vehicleLicense?: string;
   transportation: number;
   portCharge: number;
   containerHandling: number;
@@ -77,6 +79,7 @@ export interface TransportJob {
   destination: string;
   vehicleLicense: string;
   driverName: string;
+  driverNames?: string[]; // Multiple drivers support (up to 10 drivers)
   vehicleType: string;
   bookingNo: string;
   shipper: string;

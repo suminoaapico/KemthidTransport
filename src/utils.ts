@@ -151,3 +151,54 @@ export function getStatusStyle(status: string): string {
       return "bg-gray-100 text-gray-800 border-gray-200";
   }
 }
+
+/**
+ * Generates sequential monthly invoice numbers in the format KTTYYYYMM###
+ * Each new month automatically resets sequence to 001.
+ * Example:
+ * 31/08/2026 -> KTT202608099 (if 98 existed)
+ * 01/09/2026 -> KTT202609001 (new month starts at 001)
+ * 01/10/2026 -> KTT202610001 (month 10 starts at 001)
+ */
+export function generateMonthlyInvoiceNo(
+  dateStr?: string | null,
+  existingInvoices: { invoiceNo: string; date?: string }[] = []
+): string {
+  const cleanDate = dateStr ? String(dateStr).split('T')[0] : new Date().toISOString().split('T')[0];
+  const parts = cleanDate.split('-');
+  const year = parts[0] || String(new Date().getFullYear());
+  const month = (parts[1] || String(new Date().getMonth() + 1)).padStart(2, '0');
+  const targetPrefix = `KTT${year}${month}`;
+
+  let maxSeq = 0;
+
+  for (const inv of existingInvoices) {
+    if (!inv || !inv.invoiceNo) continue;
+    const rawNo = String(inv.invoiceNo).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    
+    // Check if starts with KTTYYYYMM
+    if (rawNo.startsWith(targetPrefix)) {
+      const seqStr = rawNo.substring(targetPrefix.length);
+      const seqNum = parseInt(seqStr, 10);
+      if (!isNaN(seqNum) && seqNum > maxSeq) {
+        maxSeq = seqNum;
+      }
+    } else if (inv.date) {
+      // Fallback check by invoice.date if invoiceNo had older custom format
+      const invDateParts = String(inv.date).split('T')[0].split('-');
+      if (invDateParts[0] === year && invDateParts[1] === month) {
+        const matches = rawNo.match(/\d+$/);
+        if (matches) {
+          const num = parseInt(matches[0], 10);
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num;
+          }
+        }
+      }
+    }
+  }
+
+  const nextSeq = maxSeq + 1;
+  const seqPadded = String(nextSeq).padStart(3, '0');
+  return `${targetPrefix}${seqPadded}`;
+}

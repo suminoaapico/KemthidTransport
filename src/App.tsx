@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   BarChart2, Truck, DollarSign, FileText, CheckSquare, Users, Settings, 
   RotateCw, CloudLightning, Database, Sparkles, HelpCircle, AlertCircle, CheckCircle, Info, ChevronRight,
-  Briefcase
+  Briefcase, UserCheck, CreditCard
 } from 'lucide-react';
 
 import { 
@@ -38,7 +38,7 @@ import { ReportsView } from './components/ReportsView';
 import { PartnerPaymentView } from './components/PartnerPaymentView';
 import { ManagerEntryView } from './components/ManagerEntryView';
 
-type AppTab = 'dashboard' | 'jobs' | 'expenses' | 'partner_payout' | 'invoices' | 'receipts' | 'registry' | 'finance' | 'manager_entry' | 'reports' | 'manual';
+type AppTab = 'dashboard' | 'jobs' | 'expenses' | 'partner_payout' | 'invoices' | 'receipts' | 'registry' | 'employees' | 'finance' | 'payroll' | 'manager_entry' | 'reports' | 'manual';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
@@ -668,11 +668,27 @@ export default function App() {
                 <Users className="w-4 h-4" /> ทะเบียน (4 ฐาน)
               </button>
 
+              {/* Direct Tab: จัดการพนักงาน */}
+              <button 
+                onClick={() => setActiveTab('employees')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'employees' ? 'border-indigo-600 text-indigo-700 font-extrabold bg-blue-50/40' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+              >
+                <UserCheck className="w-4 h-4 text-blue-600" /> จัดการพนักงาน
+              </button>
+
               <button 
                 onClick={() => setActiveTab('finance')}
                 className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'finance' ? 'border-indigo-600 text-indigo-700 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
               >
-                <Settings className="w-4 h-4" /> การเงิน & เงินเดือน
+                <Settings className="w-4 h-4" /> การเงิน & ภาษี
+              </button>
+
+              {/* Direct Tab: ออกสลิปเงินเดือนพนักงาน */}
+              <button 
+                onClick={() => setActiveTab('payroll')}
+                className={`py-3.5 px-3.5 font-bold text-xs border-b-2 tracking-wide flex items-center gap-1.5 whitespace-nowrap transition-all ${activeTab === 'payroll' ? 'border-indigo-600 text-indigo-700 font-extrabold bg-emerald-50/50' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+              >
+                <CreditCard className="w-4 h-4 text-emerald-600" /> สลิปเงินเดือน
               </button>
 
               {/* Requirement 2: ฝั่ง Manager - บันทึกรายรับ-รายจ่าย */}
@@ -989,12 +1005,13 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'registry' && (
+            {(activeTab === 'registry' || activeTab === 'employees') && (
               <RegistryView 
                 customers={state.customers}
                 drivers={state.drivers}
                 vehicles={state.vehicles}
                 employees={state.employees}
+                initialTab={activeTab === 'employees' ? 'employees' : 'customers'}
                 onSaveCustomer={(cust) => {
                   updateStateAndPersist(prev => {
                     const list = [...prev.customers];
@@ -1075,7 +1092,7 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'finance' && (
+            {(activeTab === 'finance' || activeTab === 'payroll') && (
               <FinanceView 
                 partnerPayments={state.partnerPayments}
                 withholdingTaxes={state.withholdingTaxes}
@@ -1084,6 +1101,7 @@ export default function App() {
                 expenses={state.expenses}
                 drivers={state.drivers}
                 employees={state.employees}
+                initialTab={activeTab === 'payroll' ? 'payroll' : 'partners'}
                 onSavePartnerPayment={(ppm) => {
                   updateStateAndPersist(prev => {
                     const list = [...prev.partnerPayments];

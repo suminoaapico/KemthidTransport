@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Plus, Edit2, Trash2, Search, X, Layers, Calendar, 
-  MapPin, HelpCircle, Save, CheckCircle
+  MapPin, HelpCircle, Save, CheckCircle, Users, UserCheck
 } from 'lucide-react';
 import { TransportJob, Customer, Driver, Vehicle, ContainerDetail, DailyExpense } from '../types';
 import { formatCurrency, getStatusStyle } from '../utils';
@@ -41,6 +41,8 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
   const [destination, setDestination] = useState('');
   const [vehicleLicense, setVehicleLicense] = useState('');
   const [driverName, setDriverName] = useState('');
+  const [selectedDriverNames, setSelectedDriverNames] = useState<string[]>([]);
+  const [customDriverInput, setCustomDriverInput] = useState('');
   const [bookingNo, setBookingNo] = useState('');
   const [shipper, setShipper] = useState('');
   const [status, setStatus] = useState<TransportJob['status']>('รอดำเนินการ');
@@ -65,6 +67,8 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
     j.jobNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.driverName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (j.driverNames && j.driverNames.some(d => d.toLowerCase().includes(searchTerm.toLowerCase()))) ||
+    (j.containers && j.containers.some(c => (c.driverName && c.driverName.toLowerCase().includes(searchTerm.toLowerCase())) || (c.containerNo && c.containerNo.toLowerCase().includes(searchTerm.toLowerCase())))) ||
     j.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.bookingNo.toLowerCase().includes(searchTerm.toLowerCase())
@@ -77,10 +81,22 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
     setOrigin('');
     setDestination('');
     setVehicleLicense(vehicles[0]?.licensePlate || '');
-    setDriverName(drivers[0]?.name || '');
+    const initialDriver = drivers[0]?.name || '';
+    const initDrivers = initialDriver ? [initialDriver] : [];
+    setSelectedDriverNames(initDrivers);
+    setDriverName(initialDriver);
+    setCustomDriverInput('');
     setBookingNo('');
     setShipper('');
-    setContainers([{ containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0, expenses: [] }]);
+    setContainers([{ 
+      containerNo: '', 
+      driverName: initialDriver, 
+      transportation: 3500, 
+      portCharge: 0, 
+      containerHandling: 0, 
+      liftOnOff: 0, 
+      expenses: [] 
+    }]);
     setStatus('รอดำเนินการ');
     setJobType('Import');
     setQuantity(1);
@@ -104,13 +120,36 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
     setOrigin(job.origin);
     setDestination(job.destination);
     setVehicleLicense(job.vehicleLicense);
-    setDriverName(job.driverName);
+    
+    // Parse drivers
+    let currentDrivers: string[] = [];
+    if (job.driverNames && job.driverNames.length > 0) {
+      currentDrivers = [...job.driverNames];
+    } else if (job.driverName) {
+      currentDrivers = job.driverName.split(/[,/]/).map(s => s.trim()).filter(Boolean);
+    }
+    setSelectedDriverNames(currentDrivers);
+    setDriverName(job.driverName || currentDrivers.join(', '));
+    setCustomDriverInput('');
+
     setBookingNo(job.bookingNo);
     setShipper(job.shipper);
     setContainers(
       job.containers.length > 0 
-        ? job.containers.map(c => ({ ...c, expenses: c.expenses || [] }))
-        : [{ containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0, expenses: [] }]
+        ? job.containers.map((c, idx) => ({ 
+            ...c, 
+            driverName: c.driverName || currentDrivers[idx % (currentDrivers.length || 1)] || job.driverName || '',
+            expenses: c.expenses || [] 
+          }))
+        : [{ 
+            containerNo: '', 
+            driverName: currentDrivers[0] || job.driverName || '',
+            transportation: 3500, 
+            portCharge: 0, 
+            containerHandling: 0, 
+            liftOnOff: 0, 
+            expenses: [] 
+          }]
     );
     setStatus(job.status);
     setJobType(job.jobType || 'Import');
@@ -124,11 +163,41 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
     setIsModalOpen(true);
   };
 
+  // Multiple drivers management (Up to 10 drivers)
+  const handleAddDriver = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (selectedDriverNames.length >= 10) {
+      alert('สามารถระบุพนักงานขับรถได้สูงสุด 10 รายชื่อต่อ 1 งาน');
+      return;
+    }
+    if (selectedDriverNames.includes(trimmed)) return;
+    const nextList = [...selectedDriverNames, trimmed];
+    setSelectedDriverNames(nextList);
+    setDriverName(nextList.join(', '));
+  };
+
+  const handleRemoveDriver = (index: number) => {
+    const nextList = selectedDriverNames.filter((_, i) => i !== index);
+    setSelectedDriverNames(nextList);
+    setDriverName(nextList.join(', '));
+  };
+
   // Add/remove rows from containers sub-form
   const addContainerRow = () => {
+    const nextIdx = containers.length;
+    const defaultDriverForContainer = selectedDriverNames[nextIdx % (selectedDriverNames.length || 1)] || selectedDriverNames[0] || driverName || '';
     setContainers([
       ...containers,
-      { containerNo: '', transportation: 3500, portCharge: 0, containerHandling: 0, liftOnOff: 0, expenses: [] }
+      { 
+        containerNo: '', 
+        driverName: defaultDriverForContainer,
+        transportation: 3500, 
+        portCharge: 0, 
+        containerHandling: 0, 
+        liftOnOff: 0, 
+        expenses: [] 
+      }
     ]);
   };
 
@@ -139,7 +208,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
 
   const updateContainerField = (index: number, field: keyof ContainerDetail, value: any) => {
     const updated = [...containers];
-    if (field === 'containerNo' || field === 'otherExpenseName') {
+    if (field === 'containerNo' || field === 'otherExpenseName' || field === 'driverName') {
       updated[index][field] = value;
     } else {
       updated[index][field] = parseFloat(value) || 0;
@@ -205,6 +274,15 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
       return sum + c.transportation + c.portCharge + c.containerHandling + c.liftOnOff + (c.otherExpenseAmount || 0) + expensesSum;
     }, 0);
 
+    const finalDriverNames = selectedDriverNames.length > 0 ? selectedDriverNames : (driverName ? [driverName] : []);
+    const finalDriverName = finalDriverNames.join(', ');
+
+    // Normalize container drivers
+    const normalizedContainers = containers.map((c, idx) => ({
+      ...c,
+      driverName: c.driverName || finalDriverNames[idx % (finalDriverNames.length || 1)] || finalDriverNames[0] || finalDriverName || ''
+    }));
+
     const updatedJob: TransportJob = {
       jobNo,
       date,
@@ -213,11 +291,12 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
       origin,
       destination,
       vehicleLicense,
-      driverName,
+      driverName: finalDriverName,
+      driverNames: finalDriverNames,
       vehicleType: selectedVehicle?.type || 'หัวลาก 10 ล้อ',
       bookingNo,
       shipper,
-      containers,
+      containers: normalizedContainers,
       totalAmount: calculatedTotal,
       status,
       jobType,
@@ -277,7 +356,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                 <th className="p-3 border-r border-slate-150 font-semibold">ลูกค้า / ผู้รับส่งสินค้า / Booking</th>
                 <th className="p-3 border-r border-slate-150 font-semibold">หัวลาก & คนขับ</th>
                 <th className="p-3 border-r border-slate-150 font-semibold">เส้นทางวิ่งสินค้า</th>
-                <th className="p-3 border-r border-slate-150 font-semibold text-center text-slate-900">จำนวนตู้</th>
+                <th className="p-3 border-r border-slate-150 font-semibold text-center text-slate-900">รายการตู้ & คนขับ</th>
                 <th className="p-3 border-r border-slate-150 font-semibold text-right">ยอดรับค่าขนส่ง</th>
                 <th className="p-3 border-r border-slate-150 font-semibold text-right text-rose-800">เบิกรายวันสะสม</th>
                 <th className="p-3 border-r border-slate-150 font-semibold text-right text-emerald-800">กำไรขั้นต้น (GP)</th>
@@ -334,8 +413,21 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                         )}
                       </td>
                       <td className="p-3 border-r border-slate-150 align-middle">
-                        <div className="font-mono bg-slate-100 rounded px-1.5 py-0.5 inline-block text-slate-700 font-semibold text-[10px] mb-0.5">{j.vehicleLicense}</div>
-                        <div className="text-[11px] text-slate-500">{j.driverName}</div>
+                        <div className="font-mono bg-slate-100 rounded px-1.5 py-0.5 inline-block text-slate-700 font-semibold text-[10px] mb-1">
+                          {j.vehicleLicense || 'ไม่ระบุทะเบียน'}
+                        </div>
+                        {j.driverNames && j.driverNames.length > 0 ? (
+                          <div className="space-y-0.5">
+                            {j.driverNames.map((dName, dIdx) => (
+                              <div key={dIdx} className="text-[11px] text-slate-700 flex items-center gap-1 font-sans">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+                                <span className="truncate max-w-[135px]" title={dName}>{dName}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-slate-600">{j.driverName || '-'}</div>
+                        )}
                       </td>
                       <td className="p-3 border-r border-slate-150 align-middle">
                         <div className="flex items-center gap-1">
@@ -351,8 +443,31 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                           </div>
                         )}
                       </td>
-                      <td className="p-3 border-r border-slate-150 text-center font-bold font-mono align-middle text-slate-900">
-                        {j.containers.length} ตู้
+                      <td className="p-3 border-r border-slate-150 align-middle">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold font-mono text-slate-900 text-xs bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {j.containers.length} ตู้
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {j.containers.map((c, cIdx) => {
+                            const assignedDriver = c.driverName || (j.driverNames && j.driverNames.length > 0 ? (j.driverNames[cIdx] || j.driverNames[0]) : j.driverName);
+                            return (
+                              <div key={cIdx} className="bg-slate-50/90 border border-slate-200 rounded-md p-1.5 text-left shadow-2xs">
+                                <div className="font-mono font-bold text-[11px] text-slate-900 flex items-center gap-1">
+                                  <span className="text-slate-400 font-normal text-[10px]">#{cIdx + 1}</span>
+                                  {c.containerNo || '-'}
+                                </div>
+                                {assignedDriver && (
+                                  <div className="text-[10px] text-indigo-700 font-sans mt-0.5 flex items-center gap-1 font-medium bg-indigo-50/70 px-1 py-0.5 rounded border border-indigo-100/60">
+                                    <span className="text-slate-400">👤 คนขับ:</span>
+                                    <span className="truncate max-w-[130px]" title={assignedDriver}>{assignedDriver}</span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </td>
                       <td className="p-3 border-r border-slate-150 text-right font-mono font-extrabold text-slate-900 align-middle whitespace-nowrap">
                         {formatCurrency(j.totalAmount)}
@@ -559,19 +674,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                     ))}
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">พนักงานขับรถขนส่ง</label>
-                  <select
-                    value={driverName}
-                    onChange={(e) => setDriverName(e.target.value)}
-                    className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
-                    required
-                  >
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.name}>{d.name} (สถานะ: {d.status})</option>
-                    ))}
-                  </select>
-                </div>
+
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 block">สถานะงานขนส่ง</label>
                   <select
@@ -597,6 +700,105 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                     placeholder="เช่น MAERSK LINE CO., LTD"
                     className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-slate-400"
                   />
+                </div>
+
+                {/* Multi-Driver Assignment Section (Up to 10 Drivers) */}
+                <div className="md:col-span-3 space-y-2 bg-indigo-50/40 p-3.5 rounded-xl border border-indigo-100">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                        <Users className="w-4 h-4 text-indigo-600" />
+                        พนักงานขับรถประจำงานนี้ (ระบุได้สูงสุด 10 รายชื่อ)
+                      </label>
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100/80 text-indigo-800 border border-indigo-200">
+                        {selectedDriverNames.length} / 10 คน
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-500">
+                      * สามารถเลือกหรือพิมพ์ระบุคนขับแยกตู้ได้ในตารางตู้คอนเทนเนอร์ด้านล่าง
+                    </span>
+                  </div>
+
+                  {/* Selected drivers badges */}
+                  <div className="flex flex-wrap gap-1.5 min-h-[36px] p-2 bg-white rounded-lg border border-indigo-100 items-center">
+                    {selectedDriverNames.length === 0 ? (
+                      <span className="text-xs text-slate-400 italic">ยังไม่ได้เลือกคนขับ (เลือกจากรายการในระบบหรือพิมพ์ชื่อด้านล่าง)</span>
+                    ) : (
+                      selectedDriverNames.map((dName, dIdx) => (
+                        <span 
+                          key={dIdx} 
+                          className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-900 text-xs font-semibold px-2.5 py-1 rounded-md border border-indigo-200 shadow-2xs"
+                        >
+                          <span className="w-4 h-4 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[10px] font-bold">
+                            {dIdx + 1}
+                          </span>
+                          {dName}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDriver(dIdx)}
+                            className="text-slate-400 hover:text-red-600 ml-0.5 rounded p-0.5 transition-colors"
+                            title="ลบรายชื่อนี้"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Driver Adder Controls */}
+                  {selectedDriverNames.length < 10 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-1">
+                      <div className="sm:col-span-6">
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleAddDriver(e.target.value);
+                            }
+                          }}
+                          className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none focus:border-indigo-400"
+                        >
+                          <option value="">+ เลือกคนขับจากรายชื่อในระบบ ({drivers.length} คน)...</option>
+                          {drivers.map(d => (
+                            <option key={d.id} value={d.name} disabled={selectedDriverNames.includes(d.name)}>
+                              {d.name} {selectedDriverNames.includes(d.name) ? '(เลือกแล้ว)' : `(สถานะ: ${d.status})`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="sm:col-span-6 flex gap-1.5">
+                        <input
+                          type="text"
+                          value={customDriverInput}
+                          onChange={(e) => setCustomDriverInput(e.target.value)}
+                          placeholder="หรือพิมพ์ชื่อคนขับเพิ่มเอง..."
+                          className="w-full text-xs bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none focus:border-indigo-400"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (customDriverInput.trim()) {
+                                handleAddDriver(customDriverInput.trim());
+                                setCustomDriverInput('');
+                              }
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (customDriverInput.trim()) {
+                              handleAddDriver(customDriverInput.trim());
+                              setCustomDriverInput('');
+                            }
+                          }}
+                          className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-2 rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> เพิ่ม
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 block">หมายเลขการจอง Booking No</label>
@@ -740,7 +942,7 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                         <Trash2 className="w-4 h-4" />
                       </button>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-[94%]">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-[94%]">
                         <div className="space-y-1">
                           <label className="text-[11px] font-bold text-slate-600 block">หมายเลขตู้คอนเทนเนอร์</label>
                           <input
@@ -751,6 +953,27 @@ export function JobsView({ jobs, customers, drivers, vehicles, expenses, onSaveJ
                             className="w-full text-xs font-mono bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none font-bold placeholder-slate-400"
                             required
                           />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-600 block">พนักงานขับรถประจำตู้ (Driver)</label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              list={`driver-options-${idx}`}
+                              placeholder="ระบุหรือเลือกคนขับประจำตู้..."
+                              value={c.driverName || ''}
+                              onChange={(e) => updateContainerField(idx, 'driverName', e.target.value)}
+                              className="w-full text-xs font-sans bg-white text-slate-800 border border-slate-200 rounded-lg p-2 outline-none focus:border-indigo-400 font-medium"
+                            />
+                            <datalist id={`driver-options-${idx}`}>
+                              {selectedDriverNames.map((name, sIdx) => (
+                                <option key={`sel-${sIdx}`} value={name}>{name} (คนขับในงานนี้)</option>
+                              ))}
+                              {drivers.map(d => (
+                                <option key={`all-${d.id}`} value={d.name}>{d.name} (คนขับในระบบ)</option>
+                              ))}
+                            </datalist>
+                          </div>
                         </div>
                         <div className="space-y-1">
                           <label className="text-[11px] font-bold text-slate-600 block">ค่าขนส่ง (Transportation)</label>

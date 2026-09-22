@@ -11,6 +11,7 @@ interface RegistryViewProps {
   drivers: Driver[];
   vehicles: Vehicle[];
   employees: Employee[];
+  initialTab?: 'customers' | 'drivers' | 'vehicles' | 'employees';
   onSaveCustomer: (cust: Customer) => void;
   onDeleteCustomer: (id: string) => void;
   onSaveDriver: (drv: Driver) => void;
@@ -23,12 +24,19 @@ interface RegistryViewProps {
 
 export function RegistryView({
   customers, drivers, vehicles, employees,
+  initialTab = 'customers',
   onSaveCustomer, onDeleteCustomer,
   onSaveDriver, onDeleteDriver,
   onSaveVehicle, onDeleteVehicle,
   onSaveEmployee, onDeleteEmployee
 }: RegistryViewProps) {
-  const [activeRegTab, setActiveRegTab] = useState<'customers' | 'drivers' | 'vehicles' | 'employees'>('customers');
+  const [activeRegTab, setActiveRegTab] = useState<'customers' | 'drivers' | 'vehicles' | 'employees'>(initialTab);
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveRegTab(initialTab);
+    }
+  }, [initialTab]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 

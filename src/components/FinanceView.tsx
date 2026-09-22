@@ -17,6 +17,7 @@ interface FinanceViewProps {
   expenses: DailyExpense[];
   drivers: Driver[];
   employees: Employee[];
+  initialTab?: 'partners' | 'withholding' | 'payroll' | 'profit';
   onSavePartnerPayment: (p: PartnerPayment) => void;
   onDeletePartnerPayment: (id: string) => void;
   onSaveWithholdingTax: (w: WithholdingTaxRecord) => void;
@@ -27,11 +28,18 @@ interface FinanceViewProps {
 
 export function FinanceView({
   partnerPayments, withholdingTaxes, payroll, invoices, expenses, drivers, employees,
+  initialTab = 'partners',
   onSavePartnerPayment, onDeletePartnerPayment,
   onSaveWithholdingTax, onDeleteWithholdingTax,
   onSavePayroll, onDeletePayroll
 }: FinanceViewProps) {
-  const [activeFinTab, setActiveFinTab] = useState<'partners' | 'withholding' | 'payroll' | 'profit'>('partners');
+  const [activeFinTab, setActiveFinTab] = useState<'partners' | 'withholding' | 'payroll' | 'profit'>(initialTab);
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveFinTab(initialTab);
+    }
+  }, [initialTab]);
   const [partnerTypeTab, setPartnerTypeTab] = useState<'PAY_PARTNER' | 'RENT_CAR'>('PAY_PARTNER');
 
   // Form toggles
