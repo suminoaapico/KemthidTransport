@@ -148,6 +148,7 @@ export interface Invoice {
   grandTotal: number;
   totalText: string;
   status: 'ยังไม่จ่าย' | 'จ่ายแล้ว';
+  remark?: string; // หมายเหตุท้ายใบแจ้งหนี้
 }
 
 export interface Receipt {
@@ -158,6 +159,7 @@ export interface Receipt {
   amount: number;
   paymentMethod: 'เงินสด' | 'โอนเงิน' | 'เช็ค';
   receiptType: 'Transport' | 'Advance';
+  remark?: string; // หมายเหตุท้ายใบเสร็จรับเงิน
 }
 
 export interface ManagerEntry {

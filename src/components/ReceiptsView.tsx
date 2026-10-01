@@ -18,6 +18,103 @@ function formatReceiptDate(dateStr: string) {
   return dateStr;
 }
 
+export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
+  const receiptType: 'Transport' | 'Advance' = matchedInvoices.some(inv => inv.invoiceType === 'Transport') ? 'Transport' : 'Advance';
+
+  let transportSum = 0;
+  let overtimeSum = 0;
+  let xraySum = 0;
+  let otherSum = 0;
+  let extraSum = 0;
+  let advanceSubtotal = 0;
+
+  if (receiptType === 'Transport') {
+    matchedInvoices.forEach(inv => {
+      if (inv.invoiceType === 'Transport') {
+        inv.containers?.forEach(c => {
+          transportSum += (c.transportation || 0);
+
+          let hasOvertimeInExpenses = false;
+          let hasXrayInExpenses = false;
+          if (c.expenses) {
+            hasOvertimeInExpenses = c.expenses.some(exp => exp.name === 'Overtime');
+            hasXrayInExpenses = c.expenses.some(exp => exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey');
+          }
+
+          otherSum += (c.portCharge || 0) + (c.containerHandling || 0) + (c.liftOnOff || 0);
+
+          if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
+            const name = c.otherExpenseName || '';
+            if (name === 'Overtime') {
+              if (!hasOvertimeInExpenses) overtimeSum += c.otherExpenseAmount;
+            } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
+              if (!hasXrayInExpenses) xraySum += c.otherExpenseAmount;
+            } else {
+              otherSum += c.otherExpenseAmount;
+            }
+          }
+
+          if (c.expenses) {
+            c.expenses.forEach(exp => {
+              const name = exp.name || '';
+              if (name === 'Overtime') {
+                overtimeSum += exp.amount || 0;
+              } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
+                xraySum += exp.amount || 0;
+              } else {
+                otherSum += exp.amount || 0;
+              }
+            });
+          }
+        });
+
+        inv.extraItems?.forEach(item => {
+          extraSum += item.amount || 0;
+        });
+      }
+    });
+
+    const subtotal = transportSum + overtimeSum + xraySum + otherSum + extraSum;
+    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ Transportation (ค่าขนส่ง) เท่านั้น ไม่รวมรายการอื่นๆ
+    const withholdingTax = Math.round(transportSum * 0.01 * 100) / 100;
+    const vatAmount = 0;
+    const grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
+
+    return {
+      receiptType,
+      transportSum,
+      overtimeSum,
+      xraySum,
+      otherSum,
+      extraSum,
+      subtotal,
+      withholdingTax,
+      vatAmount,
+      grandTotal
+    };
+  } else {
+    // Advance invoices
+    matchedInvoices.forEach(inv => {
+      advanceSubtotal += (inv.subtotal || 0);
+    });
+    const vatAmount = Math.round(advanceSubtotal * 0.07 * 100) / 100;
+    const grandTotal = Math.round((advanceSubtotal + vatAmount) * 100) / 100;
+
+    return {
+      receiptType,
+      transportSum: 0,
+      overtimeSum: 0,
+      xraySum: 0,
+      otherSum: 0,
+      extraSum: 0,
+      subtotal: advanceSubtotal,
+      withholdingTax: 0,
+      vatAmount,
+      grandTotal
+    };
+  }
+}
+
 interface ReceiptsViewProps {
   receipts: Receipt[];
   invoices: Invoice[];
@@ -39,13 +136,18 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
   const [paymentMethod, setPaymentMethod] = useState<Receipt['paymentMethod']>('โอนเงิน');
   const [selectedCustomerName, setSelectedCustomerName] = useState('');
   const [selectedInvoiceNos, setSelectedInvoiceNos] = useState<string[]>([]);
+  const [remark, setRemark] = useState('');
 
-  // Filter and Search
-  const filteredReceipts = receipts.filter(r => 
-    r.receiptNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter and Search with dynamic customer name
+  const filteredReceipts = receipts.filter(r => {
+    const cust = customers.find(c => c.name === r.customerName || c.company === r.customerName);
+    const cName = cust ? cust.name : r.customerName;
+    return (
+      r.receiptNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const resetForm = () => {
     setIsEditMode(false);
@@ -58,6 +160,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
     setPaymentMethod('โอนเงิน');
     setSelectedCustomerName('');
     setSelectedInvoiceNos([]);
+    setRemark('');
   };
 
   const handleDateChange = (newDate: string) => {
@@ -82,63 +185,8 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
     }
 
     const matchedInvoices = invoices.filter(inv => selectedInvoiceNos.includes(inv.invoiceNo));
-    
-    // Calculate sum of transportation, Overtime, and X-ray only, as requested
-    let transportOtXrayTotal = 0;
-    matchedInvoices.forEach(inv => {
-      if (inv.invoiceType === 'Transport') {
-        inv.containers.forEach(c => {
-          transportOtXrayTotal += (c.transportation || 0);
-          
-          let hasOvertimeInExpenses = false;
-          let hasXrayInExpenses = false;
-          if (c.expenses) {
-            hasOvertimeInExpenses = c.expenses.some(exp => exp.name === 'Overtime');
-            hasXrayInExpenses = c.expenses.some(exp => exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey');
-          }
-
-          // legacy otherExpense field
-          if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
-            const name = c.otherExpenseName || '';
-            if (name === 'Overtime') {
-              if (!hasOvertimeInExpenses) {
-                transportOtXrayTotal += c.otherExpenseAmount;
-              }
-            } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
-              if (!hasXrayInExpenses) {
-                transportOtXrayTotal += c.otherExpenseAmount;
-              }
-            }
-          }
-
-          if (c.expenses) {
-            const relevantExp = c.expenses.filter(exp => 
-              exp.name === 'Overtime' || 
-              exp.name === 'X-ray' || 
-              exp.name === 'X-rey' || 
-              exp.name === 'ค่า X-ray' || 
-              exp.name === 'ค่า X-rey'
-            );
-            relevantExp.forEach(exp => {
-              transportOtXrayTotal += (exp.amount || 0);
-            });
-          }
-        });
-      }
-    });
-
-    const receiptType = matchedInvoices.some(inv => inv.invoiceType === 'Transport') ? 'Transport' : 'Advance';
-
-    let finalAmount = 0;
-    if (receiptType === 'Transport') {
-      const wht = Math.round(transportOtXrayTotal * 0.01 * 100) / 100;
-      finalAmount = transportOtXrayTotal - wht;
-    } else {
-      // Pure advance receipt fallback
-      const rawSub = matchedInvoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
-      const vat = Math.round(rawSub * 0.07 * 100) / 100;
-      finalAmount = rawSub + vat;
-    }
+    const totals = calculateReceiptTotals(matchedInvoices);
+    const finalAmount = totals.grandTotal;
 
     const newReceipt: Receipt = {
       receiptNo,
@@ -147,7 +195,8 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
       customerName: selectedCustomerName,
       amount: finalAmount,
       paymentMethod,
-      receiptType
+      receiptType: totals.receiptType,
+      remark: remark.trim()
     };
 
     onSaveReceipt(newReceipt);
@@ -215,7 +264,14 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                       </td>
                     </tr>
                   ) : (
-                    filteredReceipts.map((r) => (
+                    filteredReceipts.map((r) => {
+                      const matchedCust = customers.find(c => c.name === r.customerName || c.company === r.customerName);
+                      const displayCustomerName = matchedCust ? matchedCust.name : r.customerName;
+                      const linkedInvoiceNos = r.invoiceNo.split(',').map(n => n.trim()).filter(Boolean);
+                      const matchedInvoices = invoices.filter(inv => linkedInvoiceNos.includes(inv.invoiceNo));
+                      const liveAmount = matchedInvoices.length > 0 ? calculateReceiptTotals(matchedInvoices).grandTotal : r.amount;
+
+                      return (
                       <tr key={r.receiptNo} className="hover:bg-slate-100/40 transition-colors odd:bg-white even:bg-slate-50/70">
                         <td className="p-2 border border-slate-200 font-mono font-bold align-middle text-center text-indigo-700">{r.receiptNo}</td>
                         <td className="p-2 border border-slate-200 font-mono text-center text-slate-500 whitespace-nowrap align-middle">
@@ -232,7 +288,12 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                           )}
                         </td>
                         <td className="p-2 border border-slate-200 font-bold text-slate-900 align-middle">
-                          {r.customerName}
+                          <div>{displayCustomerName}</div>
+                          {r.remark && (
+                            <div className="text-[10px] text-slate-400 font-normal italic truncate max-w-[200px]" title={r.remark}>
+                              หมายเหตุ: {r.remark}
+                            </div>
+                          )}
                         </td>
                         <td className="p-2 border border-slate-200 text-center align-middle whitespace-nowrap font-sans">
                           {r.receiptType === 'Transport' ? (
@@ -240,7 +301,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                               ค่าขนส่ง (หัก ณ ที่จ่าย 1%)
                             </span>
                           ) : (
-                            <span className="bg-indigo-50 text-indigo-850 border border-indigo-250 px-2 py-0.5 rounded text-[10px] font-bold">
+                            <span className="bg-indigo-50 text-indigo-850 border border-indigo-255 px-2 py-0.5 rounded text-[10px] font-bold">
                               เงินทดรอง (มี VAT 7%)
                             </span>
                           )}
@@ -249,7 +310,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                           {r.paymentMethod}
                         </td>
                         <td className="p-2 border border-slate-200 text-right font-mono font-extrabold text-indigo-700 align-middle text-sm whitespace-nowrap">
-                          {formatCurrency(r.amount)}
+                          {formatCurrency(liveAmount)}
                         </td>
                         <td className="p-2 border border-slate-200 text-center align-middle whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
@@ -268,6 +329,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                                 setPaymentMethod(r.paymentMethod);
                                 setSelectedCustomerName(r.customerName);
                                 setSelectedInvoiceNos(r.invoiceNo.split(',').map(n => n.trim()).filter(Boolean));
+                                setRemark(r.remark || '');
                                 setIsFormOpen(true);
                               }}
                               className="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 p-1 rounded-lg transition-colors"
@@ -289,7 +351,8 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                           </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -450,58 +513,8 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                 {selectedInvoiceNos.length > 0 && (() => {
                   const selectedInvs = invoices.filter(inv => selectedInvoiceNos.includes(inv.invoiceNo));
                   const totalInvoiceGrand = selectedInvs.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
-                  
-                  // Calculate what the receipt total will be
-                  let transportOtXrayTotal = 0;
-                  selectedInvs.forEach(inv => {
-                    if (inv.invoiceType === 'Transport') {
-                      inv.containers.forEach(c => {
-                        transportOtXrayTotal += (c.transportation || 0);
-
-                        let hasOvertimeInExpenses = false;
-                        let hasXrayInExpenses = false;
-                        if (c.expenses) {
-                          hasOvertimeInExpenses = c.expenses.some(exp => exp.name === 'Overtime');
-                          hasXrayInExpenses = c.expenses.some(exp => exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey');
-                        }
-
-                        if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
-                          const name = c.otherExpenseName || '';
-                          if (name === 'Overtime') {
-                            if (!hasOvertimeInExpenses) {
-                              transportOtXrayTotal += c.otherExpenseAmount;
-                            }
-                          } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
-                            if (!hasXrayInExpenses) {
-                              transportOtXrayTotal += c.otherExpenseAmount;
-                            }
-                          }
-                        }
-                        if (c.expenses) {
-                          c.expenses.forEach(exp => {
-                            const name = exp.name || '';
-                            if (name === 'Overtime' || name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
-                              transportOtXrayTotal += exp.amount || 0;
-                            }
-                          });
-                        }
-                      });
-                    }
-                  });
-
-                  const isTransport = selectedInvs.some(inv => inv.invoiceType === 'Transport');
-                  let finalReceiptAmount = 0;
-                  let wht = 0;
-                  let vat = 0;
-
-                  if (isTransport) {
-                    wht = Math.round(transportOtXrayTotal * 0.01 * 100) / 100;
-                    finalReceiptAmount = transportOtXrayTotal - wht;
-                  } else {
-                    const rawSub = selectedInvs.reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
-                    vat = Math.round(rawSub * 0.07 * 100) / 100;
-                    finalReceiptAmount = rawSub + vat;
-                  }
+                  const totals = calculateReceiptTotals(selectedInvs);
+                  const isTransport = totals.receiptType === 'Transport';
 
                   return (
                     <div className="bg-emerald-50/50 rounded-lg p-3 border border-emerald-200 space-y-1.5 text-xs">
@@ -512,23 +525,49 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                       {isTransport ? (
                         <>
                           <div className="flex justify-between items-center text-slate-600">
-                            <span>ยอดค่าขนส่ง + OT + X-ray (ยอดก่อนหัก)</span>
-                            <span className="font-mono font-semibold text-slate-800">{formatCurrency(transportOtXrayTotal)} บ.</span>
+                            <span>รวมเงินก่อนหัก / Total:</span>
+                            <span className="font-mono font-semibold text-slate-800">{formatCurrency(totals.subtotal)} บ.</span>
                           </div>
-                          <div className="flex justify-between items-center text-red-650">
-                            <span>หักภาษี ณ ที่จ่าย 1% (ของยอดข้างต้น)</span>
-                            <span className="font-mono font-bold text-red-650">-{formatCurrency(wht)} บ.</span>
+                          {(totals.overtimeSum > 0 || totals.xraySum > 0 || totals.otherSum > 0 || totals.extraSum > 0) && (
+                            <div className="text-[11px] text-slate-500 pl-2 space-y-0.5 border-l-2 border-slate-300 my-1 font-mono">
+                              <div className="flex justify-between">
+                                <span>- ค่าขนส่ง (Transportation):</span>
+                                <span>{formatCurrency(totals.transportSum)} บ.</span>
+                              </div>
+                              {totals.overtimeSum > 0 && (
+                                <div className="flex justify-between">
+                                  <span>- ค่า Overtime (OT):</span>
+                                  <span>{formatCurrency(totals.overtimeSum)} บ.</span>
+                                </div>
+                              )}
+                              {totals.xraySum > 0 && (
+                                <div className="flex justify-between">
+                                  <span>- ค่า X-ray:</span>
+                                  <span>{formatCurrency(totals.xraySum)} บ.</span>
+                                </div>
+                              )}
+                              {(totals.otherSum > 0 || totals.extraSum > 0) && (
+                                <div className="flex justify-between">
+                                  <span>- ค่าบริการอื่นๆ:</span>
+                                  <span>{formatCurrency(totals.otherSum + totals.extraSum)} บ.</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center text-red-650 font-medium">
+                            <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง {formatCurrency(totals.transportSum)} × 1%):</span>
+                            <span className="font-mono font-bold text-red-650">-{formatCurrency(totals.withholdingTax)} บ.</span>
                           </div>
                         </>
                       ) : (
                         <div className="flex justify-between items-center text-slate-600">
                           <span>ยอดเงินทดรองก่อน VAT:</span>
-                          <span className="font-mono font-semibold text-slate-800">{formatCurrency(finalReceiptAmount - vat)} บ.</span>
+                          <span className="font-mono font-semibold text-slate-800">{formatCurrency(totals.subtotal)} บ.</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center text-emerald-900 font-extrabold pt-1.5 border-t border-emerald-200/60">
-                        <span>ยอดที่จะออกในใบเสร็จ (Net Receipt)</span>
-                        <span className="font-mono text-sm text-indigo-700">{formatCurrency(finalReceiptAmount)} บ.</span>
+                        <span>ยอดชำระสุทธิในใบเสร็จ (Total Net)</span>
+                        <span className="font-mono text-sm text-indigo-700">{formatCurrency(totals.grandTotal)} บ.</span>
                       </div>
                     </div>
                   );
@@ -547,6 +586,21 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                 <option value="เงินสด">ชำระด้วยเงินสดหน้างาน</option>
                 <option value="เช็ค">ชำระด้วยแคชเชียร์เช็คกระดาษ</option>
               </select>
+            </div>
+
+            {/* Remark Section (ช่องระบุหมายเหตุท้ายใบเสร็จรับเงิน) */}
+            <div className="space-y-1.5 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <label className="text-xs font-bold text-slate-700 block flex items-center justify-between">
+                <span>หมายเหตุท้ายใบเสร็จรับเงิน (Remark / หมายเหตุเพิ่มเติมท้ายใบเสร็จ)</span>
+                <span className="text-[10px] text-slate-400 font-normal">จะแสดงที่ส่วนล่างของใบเสร็จรับเงิน</span>
+              </label>
+              <textarea 
+                rows={2}
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                placeholder="เช่น ได้รับการชำระเงินเรียบร้อยแล้ว, ชำระผ่านเช็คเลขที่ xxx ฯลฯ"
+                className="w-full text-xs text-slate-900 bg-white border border-slate-300 rounded-lg p-2.5 outline-none font-sans focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              />
             </div>
 
             <div className="flex items-center justify-end gap-3 border-t border-slate-150 pt-4">
@@ -656,91 +710,50 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                 const linkedInvoiceNos = previewReceipt.invoiceNo.split(',').map(n => n.trim()).filter(Boolean);
                 const matchedInvoices = invoices.filter(inv => linkedInvoiceNos.includes(inv.invoiceNo));
                 
-                const isTransport = previewReceipt.receiptType === 'Transport';
-                const grandTotal = previewReceipt.amount;
-                
+                let isTransport = previewReceipt.receiptType === 'Transport';
+                let grandTotal = previewReceipt.amount;
                 let subtotal = 0;
                 let withholdingTax = 0;
                 let vatAmount = 0;
-
-                if (isTransport) {
-                  // For transport, the stored amount is net of 1% withholding tax.
-                  // Net = Subtotal * 0.99 => Subtotal = Net / 0.99.
-                  subtotal = Math.round((grandTotal / 0.99) * 100) / 100;
-                  withholdingTax = Math.round(subtotal * 0.01 * 100) / 100;
-                  // Fine-tune to ensure absolute math consistency
-                  if (subtotal - withholdingTax !== grandTotal) {
-                    subtotal = grandTotal + withholdingTax;
-                  }
-                } else {
-                  // For advance, the stored amount is net, which is subtotal + 7% VAT.
-                  // Net = Subtotal * 1.07 => Subtotal = Net / 1.07.
-                  subtotal = Math.round((grandTotal / 1.07) * 100) / 100;
-                  vatAmount = Math.round(subtotal * 0.07 * 100) / 100;
-                  if (subtotal + vatAmount !== grandTotal) {
-                    subtotal = grandTotal - vatAmount;
-                  }
-                }
-
-                // Calculate sub breakdown from matched invoices if available
                 let transportSum = 0;
                 let overtimeSum = 0;
                 let xraySum = 0;
-                
-                matchedInvoices.forEach(inv => {
-                  if (inv.invoiceType === 'Transport') {
-                    inv.containers.forEach(c => {
-                      transportSum += (c.transportation || 0);
-                      
-                      let hasOvertimeInExpenses = false;
-                      let hasXrayInExpenses = false;
-                      if (c.expenses) {
-                        hasOvertimeInExpenses = c.expenses.some(exp => exp.name === 'Overtime');
-                        hasXrayInExpenses = c.expenses.some(exp => exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey');
-                      }
+                let otherSum = 0;
 
-                      if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
-                        const name = c.otherExpenseName || '';
-                        if (name === 'Overtime') {
-                          if (!hasOvertimeInExpenses) {
-                            overtimeSum += c.otherExpenseAmount;
-                          }
-                        } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
-                          if (!hasXrayInExpenses) {
-                            xraySum += c.otherExpenseAmount;
-                          }
-                        }
-                      }
-
-                      if (c.expenses) {
-                        c.expenses.forEach(exp => {
-                          const name = exp.name || '';
-                          if (name === 'Overtime') {
-                            overtimeSum += exp.amount || 0;
-                          } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
-                            xraySum += exp.amount || 0;
-                          }
-                        });
-                      }
-                    });
-                  }
-                });
-
-                // If breakdown doesn't sum up to the derived subtotal (e.g. some values are missing, or duplicate),
-                // we can adjust transportSum to be the remainder so the details look mathematically correct and clean
-                if (isTransport && (transportSum + overtimeSum + xraySum !== subtotal)) {
-                  transportSum = subtotal - overtimeSum - xraySum;
-                  if (transportSum < 0) {
+                if (matchedInvoices.length > 0) {
+                  const calc = calculateReceiptTotals(matchedInvoices);
+                  isTransport = calc.receiptType === 'Transport';
+                  transportSum = calc.transportSum;
+                  overtimeSum = calc.overtimeSum;
+                  xraySum = calc.xraySum;
+                  otherSum = calc.otherSum + calc.extraSum;
+                  subtotal = calc.subtotal;
+                  withholdingTax = calc.withholdingTax;
+                  vatAmount = calc.vatAmount;
+                  grandTotal = calc.grandTotal;
+                } else {
+                  if (isTransport) {
+                    subtotal = Math.round((grandTotal / 0.99) * 100) / 100;
+                    withholdingTax = Math.round(subtotal * 0.01 * 100) / 100;
+                    if (subtotal - withholdingTax !== grandTotal) {
+                      subtotal = grandTotal + withholdingTax;
+                    }
                     transportSum = subtotal;
-                    overtimeSum = 0;
-                    xraySum = 0;
+                  } else {
+                    subtotal = Math.round((grandTotal / 1.07) * 100) / 100;
+                    vatAmount = Math.round(subtotal * 0.07 * 100) / 100;
+                    if (subtotal + vatAmount !== grandTotal) {
+                      subtotal = grandTotal - vatAmount;
+                    }
                   }
                 }
                 
                 const totalText = arabicToThaiBaht(grandTotal);
                 
-                const noOfTrans = matchedInvoices.reduce((sum, inv) => 
-                  sum + (inv.invoiceType === 'Transport' ? (inv.containers?.length || 1) : (inv.advanceItems?.length || 1)), 0);
+                const noOfTrans = matchedInvoices.length > 0
+                  ? matchedInvoices.reduce((sum, inv) => 
+                      sum + (inv.invoiceType === 'Transport' ? (inv.containers?.length || 1) : (inv.advanceItems?.length || 1)), 0)
+                  : 1;
 
                 const customerObj = customers?.find(c => c.name === previewReceipt.customerName || c.company === previewReceipt.customerName);
                 const clientAddress = customerObj?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี';
@@ -788,23 +801,35 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                     </div>
 
                     {/* Client Info block (Locked 2-column layout to prevent vertical print stacking) */}
-                    <div className="grid grid-cols-2 gap-6 py-5 border-b border-slate-200">
-                      <div className="space-y-1">
-                        <span className="text-slate-400 text-[10px] font-bold block uppercase tracking-wider">Customers</span>
-                        <span className="text-sm font-bold text-slate-900 block">{previewReceipt.customerName}</span>
-                        <p className="text-slate-755 leading-relaxed text-[11px] font-medium font-sans">
-                          ที่อยู่ : {clientAddress}
-                        </p>
-                        <div className="text-slate-600 text-[11px] font-sans space-y-0.5">
-                          {clientPhone && <div>โทร : <span className="font-bold text-slate-850">{clientPhone}</span></div>}
-                          <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-850">{clientTaxId || '0205560001196'}</span></div>
+                    {(() => {
+                      const clientObj = customers.find(c => c.name === previewReceipt.customerName || c.company === previewReceipt.customerName);
+                      const clientDisplayName = clientObj ? (clientObj.name || clientObj.company) : previewReceipt.customerName;
+                      const clientAddress = clientObj?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี';
+                      const clientPhone = clientObj?.phone || '';
+                      const clientTaxId = clientObj?.taxId || '';
+
+                      return (
+                        <div className="grid grid-cols-2 gap-6 py-5 border-b border-slate-200">
+                          <div className="space-y-1">
+                            <span className="text-slate-400 text-[10px] font-bold block uppercase tracking-wider">Customers</span>
+                            <span className="text-sm font-bold text-slate-900 block">{clientDisplayName}</span>
+                            <p className="text-slate-700 leading-relaxed text-[11px] font-medium font-sans">
+                              ที่อยู่ : {clientAddress}
+                            </p>
+                            <div className="text-slate-600 text-[11px] font-sans space-y-0.5">
+                              {clientPhone && <div>โทร : <span className="font-bold text-slate-850">{clientPhone}</span></div>}
+                              {clientTaxId ? (
+                                <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-850">{clientTaxId}</span></div>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="space-y-1 text-right font-sans text-[11px] text-slate-600">
+                            <div>เลขอ้างอิงใบวางบิล Invoice Ref: <span className="font-bold text-slate-900">{previewReceipt.invoiceNo ? previewReceipt.invoiceNo.replace(/-/g, '') : ''}</span></div>
+                            <div>ช่องทางการชำระ Payment: <span className="font-bold text-slate-900">{previewReceipt.paymentMethod}</span></div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="space-y-1 text-right font-sans text-[11px] text-slate-600">
-                        <div>เลขอ้างอิงใบวางบิล Invoice Ref: <span className="font-bold text-slate-900">{previewReceipt.invoiceNo ? previewReceipt.invoiceNo.replace(/-/g, '') : ''}</span></div>
-                        <div>ช่องทางการชำระ Payment: <span className="font-bold text-slate-900">{previewReceipt.paymentMethod}</span></div>
-                      </div>
-                    </div>
+                      );
+                    })()}
 
                     {/* Items Table */}
                     <div className="py-4">
@@ -822,12 +847,14 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                             <td className="p-3 text-center text-slate-600">1</td>
                             <td className="p-3 font-semibold text-slate-900">
                               <div className="text-[11px] font-bold text-slate-900">
-                                ค่าบริการขนส่งสินค้า และค่าบริการล่วงเวลา (Transportation & Overtime Services)
+                                {isTransport 
+                                  ? 'ค่าบริการขนส่งสินค้า และค่าบริการล่วงเวลา (Transportation & Overtime Services)' 
+                                  : 'ค่าบริการเบิกรองจ่ายล่วงหน้า (Advance Payments)'}
                               </div>
                               <div className="text-[10px] text-slate-500 font-normal mt-1">
                                 อ้างอิงใบแจ้งหนี้เลขที่ document ref: {previewReceipt.invoiceNo ? previewReceipt.invoiceNo.replace(/-/g, '') : ''}
                               </div>
-                              {(isTransport && (overtimeSum > 0 || xraySum > 0)) && (
+                              {(isTransport && (overtimeSum > 0 || xraySum > 0 || otherSum > 0)) && (
                                 <div className="mt-2 border-t border-slate-100 pt-1.5 text-[11px] text-slate-700 font-normal">
                                   <div className="font-bold text-slate-800">ย่อย:</div>
                                   <div className="space-y-1 max-w-[280px] ml-auto">
@@ -845,6 +872,12 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                                       <div className="flex justify-between">
                                         <span className="text-slate-600">ค่า X-ray:</span>
                                         <span className="font-bold text-slate-900">{formatCurrency(xraySum)}</span>
+                                      </div>
+                                    )}
+                                    {otherSum > 0 && (
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-600">ค่าบริการอื่นๆ:</span>
+                                        <span className="font-bold text-slate-900">{formatCurrency(otherSum)}</span>
                                       </div>
                                     )}
                                   </div>
@@ -876,7 +909,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                         </div>
                         {isTransport ? (
                           <div className="flex justify-between text-red-650 font-semibold border-b border-slate-150 pb-1">
-                            <span>ภาษีหัก ณ ที่จ่าย 1%</span>
+                            <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง)</span>
                             <span>{formatCurrency(withholdingTax)}</span>
                           </div>
                         ) : (
@@ -891,6 +924,13 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                         </div>
                       </div>
                     </div>
+
+                    {/* Remark Section on Printed Receipt */}
+                    {previewReceipt.remark && (
+                      <div className="mt-4 p-3 bg-slate-50 border border-slate-300 rounded-lg text-[11px] text-slate-800 font-sans leading-relaxed">
+                        <span className="font-bold text-slate-900">หมายเหตุ (Remark):</span> {previewReceipt.remark}
+                      </div>
+                    )}
 
                     {/* Signatures and stamp indicator */}
                     <div className="grid grid-cols-2 gap-12 pt-12 text-center text-[10px] relative">

@@ -136,13 +136,20 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
   // รายการเพิ่มเติม (Custom Extra Items: ชื่อรายการ, จำนวน, ราคา/หน่วย, คำนวณรวมอัตโนมัติ, หัก 1% อัตโนมัติ)
   const [extraItems, setExtraItems] = useState<ExtraInvoiceItem[]>([]);
 
-  // Filter and Search
-  const filteredInvoices = invoices.filter(i => 
-    i.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.invoiceType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.status.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Remark / หมายเหตุท้ายใบแจ้งหนี้
+  const [remark, setRemark] = useState('');
+
+  // Filter and Search with dynamic customer mapping
+  const filteredInvoices = invoices.filter(i => {
+    const cust = customers.find(c => c.id === i.customerId || c.name === i.customerName || c.company === i.customerName);
+    const cName = cust ? cust.name : i.customerName;
+    return (
+      i.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      i.invoiceType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      i.status.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const resetForm = () => {
     setIsEditMode(false);
@@ -157,6 +164,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
     setContainers([]);
     setAdvanceItems([{ id: 'ADV-I-001', description: 'ค่าผ่านประตูท่าเรือแหลมฉบัง LCB', amount: 1200 }]);
     setExtraItems([]);
+    setRemark('');
   };
 
   const handleDateChange = (newDate: string) => {
@@ -275,7 +283,8 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
       vatAmount,
       grandTotal,
       totalText,
-      status: originalStatus
+      status: originalStatus,
+      remark: remark.trim()
     };
 
     onSaveInvoice(newInvoice);
@@ -347,6 +356,9 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </tr>
                   ) : (
                     filteredInvoices.map((rawInv) => {
+                      const matchedCust = customers.find(c => c.id === rawInv.customerId || c.name === rawInv.customerName || c.company === rawInv.customerName);
+                      const currentCustName = matchedCust ? matchedCust.name : rawInv.customerName;
+
                       const invTotals = calculateInvoiceTotals(
                         rawInv.invoiceType,
                         rawInv.containers || [],
@@ -355,6 +367,8 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                       );
                       const inv = {
                         ...rawInv,
+                        customerId: matchedCust ? matchedCust.id : rawInv.customerId,
+                        customerName: currentCustName,
                         subtotal: invTotals.subtotal,
                         withholdingTax: invTotals.withholdingTax,
                         vatAmount: invTotals.vatAmount,
@@ -369,7 +383,12 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                           {inv.date}
                         </td>
                         <td className="p-2 border border-slate-200 align-middle font-semibold text-slate-900">
-                          {inv.customerName}
+                          <div>{inv.customerName}</div>
+                          {inv.remark && (
+                            <div className="text-[10px] text-slate-400 italic truncate max-w-[200px]" title={inv.remark}>
+                              หมายเหตุ: {inv.remark}
+                            </div>
+                          )}
                         </td>
                         <td className="p-2 border border-slate-200 text-center align-middle whitespace-nowrap font-sans">
                           {inv.invoiceType === 'Transport' ? (
@@ -420,6 +439,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                                 setContainers(inv.containers || []);
                                 setAdvanceItems(inv.advanceItems || []);
                                 setExtraItems(inv.extraItems || []);
+                                setRemark(inv.remark || '');
                                 setIsFormOpen(true);
                               }}
                               className="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 p-1 rounded-lg transition-colors"
@@ -952,6 +972,21 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
               )}
             </div>
 
+            {/* Remark Section (ช่องระบุหมายเหตุท้ายบิล) */}
+            <div className="space-y-1.5 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <label className="text-xs font-bold text-slate-700 block flex items-center justify-between">
+                <span>หมายเหตุท้ายใบแจ้งหนี้ (Remark / หมายเหตุเพิ่มเติมท้ายบิล)</span>
+                <span className="text-[10px] text-slate-400 font-normal">จะแสดงที่ส่วนล่างของเอกสารใบวางบิล / ใบแจ้งหนี้</span>
+              </label>
+              <textarea 
+                rows={2}
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                placeholder="เช่น กรุณาโอนเงินเข้าบัญชี บจก. เข็มทิศ ทรานสปอร์ต ธนาคารกสิกรไทย เลขที่ xxx-x-xxxxx-x, ครบกำหนดชำระภายใน 30 วัน ฯลฯ"
+                className="w-full text-xs text-slate-900 bg-white border border-slate-300 rounded-lg p-2.5 outline-none font-sans focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
             {/* Calculations Summary Section */}
             {(() => {
               const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems, extraItems);
@@ -1135,25 +1170,39 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
               </div>
             </div>
 
-            {/* Client address details (Locked 2-column layout to prevent vertical print stacking) */}
-            <div className="grid grid-cols-2 gap-6 py-5 border-b border-slate-200">
-              <div className="space-y-1">
-                <span className="text-slate-400 text-[10px] font-bold block uppercase tracking-wider">Customers</span>
-                <span className="text-sm font-bold text-slate-900 block">{previewInvoice.customerName}</span>
-                <p className="text-slate-700 leading-relaxed text-[11px] font-medium font-sans">
-                  ที่อยู่ : {customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี'}
-                </p>
-                <div className="text-slate-600 text-[11px] font-sans space-y-0.5">
-                  <div>โทร : <span className="font-bold text-slate-850">{customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.phone || '081-xxxxxxx'}</span></div>
-                  {customers.find(c => c.name === previewInvoice.customerName || c.company === previewInvoice.customerName)?.phone && (
-                    <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-850">0205560001196</span> (สำนักงานใหญ่)</div>
-                  )}
+            {/* Client address details (Dynamic lookup by customerId or customerName) */}
+            {(() => {
+              const matchedCustomer = customers.find(c => 
+                c.id === previewInvoice.customerId || 
+                c.name === previewInvoice.customerName || 
+                c.company === previewInvoice.customerName
+              );
+              const displayCustName = matchedCustomer ? (matchedCustomer.name || matchedCustomer.company) : previewInvoice.customerName;
+              const displayCustAddress = matchedCustomer?.address || 'ต.ศรีราชา อ.ศรีราชา จ.ชลบุรี';
+              const displayCustPhone = matchedCustomer?.phone || '-';
+              const displayCustTaxId = matchedCustomer?.taxId || '';
+
+              return (
+                <div className="grid grid-cols-2 gap-6 py-5 border-b border-slate-200">
+                  <div className="space-y-1">
+                    <span className="text-slate-400 text-[10px] font-bold block uppercase tracking-wider">Customers</span>
+                    <span className="text-sm font-bold text-slate-900 block">{displayCustName}</span>
+                    <p className="text-slate-700 leading-relaxed text-[11px] font-medium font-sans">
+                      ที่อยู่ : {displayCustAddress}
+                    </p>
+                    <div className="text-slate-600 text-[11px] font-sans space-y-0.5">
+                      <div>โทร : <span className="font-bold text-slate-850">{displayCustPhone}</span></div>
+                      {displayCustTaxId ? (
+                        <div>เลขประจำตัวผู้เสียภาษี : <span className="font-bold text-slate-850">{displayCustTaxId}</span></div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {/* Clean blank space on the right */}
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                {/* Clean blank space on the right, as requested by arrow relocation */}
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Invoiced Items Table */}
             <div className="py-4">
@@ -1393,6 +1442,13 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 </div>
               );
             })()}
+
+            {/* Remark Section on Printed Invoice */}
+            {previewInvoice.remark && (
+              <div className="mt-4 p-3 bg-slate-50 border border-slate-300 rounded-lg text-[11px] text-slate-800 font-sans leading-relaxed">
+                <span className="font-bold text-slate-900">หมายเหตุ (Remark):</span> {previewInvoice.remark}
+              </div>
+            )}
 
             {/* Signatures Section */}
             <div className="grid grid-cols-2 gap-12 pt-12 text-center text-[10px] relative">

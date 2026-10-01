@@ -1016,9 +1016,41 @@ export default function App() {
                   updateStateAndPersist(prev => {
                     const list = [...prev.customers];
                     const index = list.findIndex(c => c.id === cust.id);
+                    const oldCustomer = index > -1 ? list[index] : null;
                     if (index > -1) list[index] = cust;
                     else list.push(cust);
-                    return { ...prev, customers: list };
+
+                    // Auto-sync customer name across all existing invoices
+                    const updatedInvoices = prev.invoices.map(inv => {
+                      if (inv.customerId === cust.id || (oldCustomer && (inv.customerName === oldCustomer.name || inv.customerName === oldCustomer.company))) {
+                        return { ...inv, customerId: cust.id, customerName: cust.name };
+                      }
+                      return inv;
+                    });
+
+                    // Auto-sync customer name across jobs
+                    const updatedJobs = prev.jobs.map(job => {
+                      if (job.customerId === cust.id || (oldCustomer && (job.customerName === oldCustomer.name || job.customerName === oldCustomer.company))) {
+                        return { ...job, customerId: cust.id, customerName: cust.name };
+                      }
+                      return job;
+                    });
+
+                    // Auto-sync customer name across receipts
+                    const updatedReceipts = prev.receipts.map(rec => {
+                      if (oldCustomer && (rec.customerName === oldCustomer.name || rec.customerName === oldCustomer.company)) {
+                        return { ...rec, customerName: cust.name };
+                      }
+                      return rec;
+                    });
+
+                    return { 
+                      ...prev, 
+                      customers: list, 
+                      invoices: updatedInvoices, 
+                      jobs: updatedJobs,
+                      receipts: updatedReceipts 
+                    };
                   });
                   handleSupabaseSave(dbSaveCustomer, cust, 'ลูกค้า (customers)');
                 }}
