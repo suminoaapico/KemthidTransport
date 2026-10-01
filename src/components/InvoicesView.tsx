@@ -84,8 +84,8 @@ export function calculateInvoiceTotals(
     }
 
     subtotal = transportSum + overtimeSum + xraySum + otherSum + extraItemsSum;
-    // หัก 1% อัตโนมัติ เช่นเดียวกับค่าขนส่งและค่าบริการ
-    withholdingTax = Math.round((subtotal) * 0.01 * 100) / 100;
+    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ transportation (ค่าขนส่ง) เท่านั้น ไม่รวมรายการอื่นๆ
+    withholdingTax = Math.round((transportSum) * 0.01 * 100) / 100;
     vatAmount = 0;
     grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
   } else {
@@ -299,7 +299,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 <FileText className="text-indigo-600 w-5 h-5" />
                 ใบแจ้งหนี้เพื่อการวางบิล (Billing & Invoices)
               </h2>
-              <p className="text-slate-400 text-xs">ออกใบแจ้งหนี้ค่าขนส่ง (หัก ณ ที่จ่าย 1% มี/ไม่มีตู้) หรือ ใบวางเงินรับทดรองจ่าย (บวก VAT 7%)</p>
+              <p className="text-slate-400 text-xs">ออกใบแจ้งหนี้ค่าขนส่ง (หัก ณ ที่จ่าย 1% เฉพาะค่าขนส่ง Transportation) หรือ ใบวางเงินรับทดรองจ่าย (บวก VAT 7%)</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -346,7 +346,23 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                       </td>
                     </tr>
                   ) : (
-                    filteredInvoices.map((inv) => (
+                    filteredInvoices.map((rawInv) => {
+                      const invTotals = calculateInvoiceTotals(
+                        rawInv.invoiceType,
+                        rawInv.containers || [],
+                        rawInv.advanceItems || [],
+                        rawInv.extraItems || []
+                      );
+                      const inv = {
+                        ...rawInv,
+                        subtotal: invTotals.subtotal,
+                        withholdingTax: invTotals.withholdingTax,
+                        vatAmount: invTotals.vatAmount,
+                        grandTotal: invTotals.grandTotal,
+                        totalText: arabicToThaiBaht(invTotals.grandTotal)
+                      };
+
+                      return (
                       <tr key={inv.invoiceNo} className="hover:bg-slate-100/40 transition-colors odd:bg-white even:bg-slate-50/70">
                         <td className="p-2 border border-slate-200 font-mono font-bold align-middle text-center text-indigo-700">{inv.invoiceNo}</td>
                         <td className="p-2 border border-slate-200 font-mono text-center text-slate-500 whitespace-nowrap align-middle">
@@ -425,7 +441,8 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                           </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -841,7 +858,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     รายการเพิ่มเติม (Additional Custom Items)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    พิมพ์ชื่อรายการเอง กรอกจำนวน และราคา/หน่วย ระบบจะคำนวณยอดรวมและหัก 1% อัตโนมัติ (เช่นเดียวกับค่าขนส่ง)
+                    พิมพ์ชื่อรายการเอง กรอกจำนวน และราคา/หน่วย ระบบจะรวมในยอดรวมใบแจ้งหนี้ (ภาษีหัก ณ ที่จ่าย 1% คำนวณเฉพาะค่าขนส่ง Transportation เท่านั้น)
                   </p>
                 </div>
                 <button
@@ -923,7 +940,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                       <div className="sm:col-span-3 bg-white p-2 rounded-lg border border-slate-200">
                         <div className="flex justify-between items-center text-[10px] text-slate-500">
                           <span>ยอดรวมคำนวณ:</span>
-                          <span className="text-indigo-600 font-bold">หัก 1% (-{formatCurrency(Math.round(item.amount * 0.01 * 100) / 100)})</span>
+                          <span className="text-slate-600 font-semibold">รวมในยอดบิล</span>
                         </div>
                         <div className="text-right text-sm font-mono font-extrabold text-slate-900">
                           {formatCurrency(item.amount)} <span className="text-xs font-normal text-slate-500">บาท</span>
@@ -949,7 +966,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </div>
                     {invoiceType === 'Transport' ? (
                       <div className="flex justify-between text-red-400 font-semibold border-b border-slate-800 pb-2">
-                        <span>หักภาษี ณ ที่จ่าย 1% สะสม:</span>
+                        <span>หักภาษี ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง):</span>
                         <span className="font-mono">
                           -{formatCurrency(totals.withholdingTax)}
                         </span>
@@ -1332,38 +1349,50 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
             </div>
 
             {/* Calculations and Thai Baht words inside static grid elements, preventing line wrapping or massive vertical gaps */}
-            <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-300 mt-2 font-sans">
-              <div className="col-span-2 flex items-center">
-                <div className="w-full border-2 border-dotted border-slate-400 p-4 rounded bg-slate-50 flex items-center justify-center min-h-[50px] relative">
-                  <span className="text-[10px] text-slate-400 font-bold absolute top-1 left-2 uppercase tracking-wide">จำนวนยอดเงินตัวอักษรไทย (Thai Baht Text)</span>
-                  <span className="text-xs font-semibold text-slate-800 text-center leading-none">
-                    -- {previewInvoice.totalText} --
-                  </span>
-                </div>
-              </div>
+            {(() => {
+              const previewTotals = calculateInvoiceTotals(
+                previewInvoice.invoiceType,
+                previewInvoice.containers || [],
+                previewInvoice.advanceItems || [],
+                previewInvoice.extraItems || []
+              );
+              const previewTotalText = arabicToThaiBaht(previewTotals.grandTotal);
 
-              <div className="space-y-1 text-[11px] border bg-slate-50/30 p-3 rounded-lg border-slate-200 font-sans">
-                <div className="flex justify-between text-slate-500">
-                  <span>รวมเงิน / Total</span>
-                  <span className="font-bold">{formatCurrency(previewInvoice.subtotal)}</span>
-                </div>
-                {previewInvoice.invoiceType === 'Transport' ? (
-                  <div className="flex justify-between text-red-650 font-semibold border-b border-slate-200 pb-1">
-                    <span>ภาษีหัก ณ ที่จ่าย 1%</span>
-                    <span>{formatCurrency(previewInvoice.withholdingTax)}</span>
+              return (
+                <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-300 mt-2 font-sans">
+                  <div className="col-span-2 flex items-center">
+                    <div className="w-full border-2 border-dotted border-slate-400 p-4 rounded bg-slate-50 flex items-center justify-center min-h-[50px] relative">
+                      <span className="text-[10px] text-slate-400 font-bold absolute top-1 left-2 uppercase tracking-wide">จำนวนยอดเงินตัวอักษรไทย (Thai Baht Text)</span>
+                      <span className="text-xs font-semibold text-slate-800 text-center leading-none">
+                        -- {previewTotalText} --
+                      </span>
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex justify-between text-emerald-655 font-semibold border-b border-slate-200 pb-1">
-                    <span>ภาษีมูลค่าเพิ่ม / Vat 7%</span>
-                    <span>{formatCurrency(previewInvoice.vatAmount)}</span>
+
+                  <div className="space-y-1 text-[11px] border bg-slate-50/30 p-3 rounded-lg border-slate-200 font-sans">
+                    <div className="flex justify-between text-slate-500">
+                      <span>รวมเงิน / Total</span>
+                      <span className="font-bold">{formatCurrency(previewTotals.subtotal)}</span>
+                    </div>
+                    {previewInvoice.invoiceType === 'Transport' ? (
+                      <div className="flex justify-between text-red-650 font-semibold border-b border-slate-200 pb-1">
+                        <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง)</span>
+                        <span>{formatCurrency(previewTotals.withholdingTax)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-emerald-655 font-semibold border-b border-slate-200 pb-1">
+                        <span>ภาษีมูลค่าเพิ่ม / Vat 7%</span>
+                        <span>{formatCurrency(previewTotals.vatAmount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs font-bold text-slate-950 pt-1.5 border-t border-slate-200 font-sans">
+                      <span>ยอดชำระ / Total Net</span>
+                      <span className="text-slate-950 text-sm font-bold">{formatCurrency(previewTotals.grandTotal)}</span>
+                    </div>
                   </div>
-                )}
-                <div className="flex justify-between text-xs font-bold text-slate-950 pt-1.5 border-t border-slate-200 font-sans">
-                  <span>ยอดชำระ / Total Net</span>
-                  <span className="text-slate-950 text-sm font-bold">{formatCurrency(previewInvoice.grandTotal)}</span>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Signatures Section */}
             <div className="grid grid-cols-2 gap-12 pt-12 text-center text-[10px] relative">
