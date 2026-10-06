@@ -75,8 +75,9 @@ export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
     });
 
     const subtotal = transportSum + overtimeSum + xraySum + otherSum + extraSum;
-    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ Transportation (ค่าขนส่ง) เท่านั้น ไม่รวมรายการอื่นๆ
-    const withholdingTax = Math.round(transportSum * 0.01 * 100) / 100;
+    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ Transportation (ค่าขนส่ง) + Overtime (ค่าล่วงเวลา) รวม 2 รายการนี้เท่านั้น
+    const taxableBase = transportSum + overtimeSum;
+    const withholdingTax = Math.round(taxableBase * 0.01 * 100) / 100;
     const vatAmount = 0;
     const grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
 
@@ -555,7 +556,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                             </div>
                           )}
                           <div className="flex justify-between items-center text-red-650 font-medium">
-                            <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง {formatCurrency(totals.transportSum)} × 1%):</span>
+                            <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง + OT: {formatCurrency(totals.transportSum + totals.overtimeSum)} × 1%):</span>
                             <span className="font-mono font-bold text-red-650">-{formatCurrency(totals.withholdingTax)} บ.</span>
                           </div>
                         </>
@@ -909,7 +910,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                         </div>
                         {isTransport ? (
                           <div className="flex justify-between text-red-650 font-semibold border-b border-slate-150 pb-1">
-                            <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง)</span>
+                            <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง + OT)</span>
                             <span>{formatCurrency(withholdingTax)}</span>
                           </div>
                         ) : (

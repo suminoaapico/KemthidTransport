@@ -84,8 +84,9 @@ export function calculateInvoiceTotals(
     }
 
     subtotal = transportSum + overtimeSum + xraySum + otherSum + extraItemsSum;
-    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ transportation (ค่าขนส่ง) เท่านั้น ไม่รวมรายการอื่นๆ
-    withholdingTax = Math.round((transportSum) * 0.01 * 100) / 100;
+    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ Transportation (ค่าขนส่ง) + Overtime (ค่าล่วงเวลา) รวม 2 รายการนี้เท่านั้น
+    const taxableBase = transportSum + overtimeSum;
+    withholdingTax = Math.round(taxableBase * 0.01 * 100) / 100;
     vatAmount = 0;
     grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
   } else {
@@ -308,7 +309,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 <FileText className="text-indigo-600 w-5 h-5" />
                 ใบแจ้งหนี้เพื่อการวางบิล (Billing & Invoices)
               </h2>
-              <p className="text-slate-400 text-xs">ออกใบแจ้งหนี้ค่าขนส่ง (หัก ณ ที่จ่าย 1% เฉพาะค่าขนส่ง Transportation) หรือ ใบวางเงินรับทดรองจ่าย (บวก VAT 7%)</p>
+              <p className="text-slate-400 text-xs">ออกใบแจ้งหนี้ค่าขนส่ง (หัก ณ ที่จ่าย 1% เฉพาะค่าขนส่ง + Overtime) หรือ ใบวางเงินรับทดรองจ่าย (บวก VAT 7%)</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -878,7 +879,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     รายการเพิ่มเติม (Additional Custom Items)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    พิมพ์ชื่อรายการเอง กรอกจำนวน และราคา/หน่วย ระบบจะรวมในยอดรวมใบแจ้งหนี้ (ภาษีหัก ณ ที่จ่าย 1% คำนวณเฉพาะค่าขนส่ง Transportation เท่านั้น)
+                    พิมพ์ชื่อรายการเอง กรอกจำนวน และราคา/หน่วย ระบบจะรวมในยอดรวมใบแจ้งหนี้ (ภาษีหัก ณ ที่จ่าย 1% คำนวณเฉพาะค่าขนส่ง + Overtime เท่านั้น)
                   </p>
                 </div>
                 <button
@@ -1001,7 +1002,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </div>
                     {invoiceType === 'Transport' ? (
                       <div className="flex justify-between text-red-400 font-semibold border-b border-slate-800 pb-2">
-                        <span>หักภาษี ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง):</span>
+                        <span>หักภาษี ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง + OT):</span>
                         <span className="font-mono">
                           -{formatCurrency(totals.withholdingTax)}
                         </span>
@@ -1425,7 +1426,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </div>
                     {previewInvoice.invoiceType === 'Transport' ? (
                       <div className="flex justify-between text-red-650 font-semibold border-b border-slate-200 pb-1">
-                        <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง)</span>
+                        <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง + OT)</span>
                         <span>{formatCurrency(previewTotals.withholdingTax)}</span>
                       </div>
                     ) : (

@@ -143,7 +143,7 @@ export interface Invoice {
   advanceItems: AdvanceItem[]; // empty for transport
   extraItems?: ExtraInvoiceItem[]; // รายการเพิ่มเติม
   subtotal: number;
-  withholdingTax: number; // 1% for transportation only
+  withholdingTax: number; // 1% for Transportation + Overtime only
   vatAmount: number; // 7% for advance, 0 for transport
   grandTotal: number;
   totalText: string;
