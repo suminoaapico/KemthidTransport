@@ -1002,7 +1002,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </div>
                     {invoiceType === 'Transport' ? (
                       <div className="flex justify-between text-red-400 font-semibold border-b border-slate-800 pb-2">
-                        <span>หักภาษี ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง + OT):</span>
+                        <span>หักภาษี ณ ที่จ่าย 1% :</span>
                         <span className="font-mono">
                           -{formatCurrency(totals.withholdingTax)}
                         </span>
@@ -1426,7 +1426,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </div>
                     {previewInvoice.invoiceType === 'Transport' ? (
                       <div className="flex justify-between text-red-650 font-semibold border-b border-slate-200 pb-1">
-                        <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง + OT)</span>
+                        <span>ภาษีหัก ณ ที่จ่าย 1% </span>
                         <span>{formatCurrency(previewTotals.withholdingTax)}</span>
                       </div>
                     ) : (
