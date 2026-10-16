@@ -1285,7 +1285,12 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                       if (c.expenses) {
                         c.expenses.forEach(exp => {
                           if (exp.amount > 0) {
-                            charges.push({ name: exp.name, amount: exp.amount, qty: 1, rate: exp.amount });
+                            charges.push({ 
+                              name: exp.name, 
+                              amount: exp.amount, 
+                              qty: exp.qty !== undefined ? exp.qty : 1, 
+                              rate: exp.rate !== undefined ? exp.rate : exp.amount 
+                            });
                           }
                         });
                       }
