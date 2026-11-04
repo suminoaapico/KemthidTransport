@@ -202,3 +202,30 @@ export function generateMonthlyInvoiceNo(
   const seqPadded = String(nextSeq).padStart(3, '0');
   return `${targetPrefix}${seqPadded}`;
 }
+
+/**
+ * Checks if an expense or extra item name is subject to 1% Withholding Tax:
+ * - X-ray / X-rey
+ * - เปิดตรวจ / ค่าเปิดตรวจ
+ * - ลากตู้เปล่า
+ * - ลากตู้หนัก
+ * - ค้างหาง / ค่าค้างหาง
+ */
+export function isTaxable1Percent(name: string): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return (
+    n === 'x-ray' ||
+    n === 'x-rey' ||
+    n === 'ค่า x-ray' ||
+    n === 'ค่า x-rey' ||
+    n === 'เปิดตรวจ' ||
+    n === 'ค่าเปิดตรวจ' ||
+    n === 'ลากตู้เปล่า' ||
+    n === 'ลากตู้หนัก' ||
+    n === 'ค้างหาง' ||
+    n === 'ค่าค้างหาง'
+  );
+}
+
+

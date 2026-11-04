@@ -4,7 +4,7 @@ import {
   HelpCircle, Layers, Check, Calculator, ChevronRight, PlusCircle
 } from 'lucide-react';
 import { Invoice, Customer, TransportJob, ContainerDetail, AdvanceItem, ExtraInvoiceItem } from '../types';
-import { arabicToThaiBaht, formatCurrency, getStatusStyle, generateMonthlyInvoiceNo } from '../utils';
+import { arabicToThaiBaht, formatCurrency, getStatusStyle, generateMonthlyInvoiceNo, isTaxable1Percent } from '../utils';
 
 function formatInvoiceDate(dateStr: string) {
   if (!dateStr) return '';
@@ -31,47 +31,33 @@ export function calculateInvoiceTotals(
 
   if (invoiceType === 'Transport') {
     let transportSum = 0;
-    let overtimeSum = 0;
-    let xraySum = 0;
-    let otherSum = 0;
+    let taxableExpensesSum = 0;
+    let nonTaxableExpensesSum = 0;
     let extraItemsSum = 0;
+    let taxableExtraSum = 0;
 
     containers.forEach(c => {
       transportSum += c.transportation || 0;
       
-      let hasOvertimeInExpenses = false;
-      let hasXrayInExpenses = false;
-      if (c.expenses) {
-        hasOvertimeInExpenses = c.expenses.some(exp => exp.name === 'Overtime');
-        hasXrayInExpenses = c.expenses.some(exp => exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey');
-      }
-
       // legacy fields
-      otherSum += (c.portCharge || 0) + (c.containerHandling || 0) + (c.liftOnOff || 0);
+      nonTaxableExpensesSum += (c.portCharge || 0) + (c.containerHandling || 0) + (c.liftOnOff || 0);
       if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
         const name = c.otherExpenseName || '';
-        if (name === 'Overtime') {
-          if (!hasOvertimeInExpenses) {
-            overtimeSum += c.otherExpenseAmount;
-          }
-        } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
-          if (!hasXrayInExpenses) {
-            xraySum += c.otherExpenseAmount;
-          }
+        const amt = c.otherExpenseAmount;
+        if (isTaxable1Percent(name)) {
+          taxableExpensesSum += amt;
         } else {
-          otherSum += c.otherExpenseAmount;
+          nonTaxableExpensesSum += amt;
         }
       }
 
       if (c.expenses) {
         c.expenses.forEach(exp => {
-          const name = exp.name || '';
-          if (name === 'Overtime') {
-            overtimeSum += exp.amount || 0;
-          } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
-            xraySum += exp.amount || 0;
+          const amt = exp.amount || 0;
+          if (isTaxable1Percent(exp.name)) {
+            taxableExpensesSum += amt;
           } else {
-            otherSum += exp.amount || 0;
+            nonTaxableExpensesSum += amt;
           }
         });
       }
@@ -79,13 +65,17 @@ export function calculateInvoiceTotals(
 
     if (extraItems && extraItems.length > 0) {
       extraItems.forEach(item => {
-        extraItemsSum += item.amount || 0;
+        const amt = item.amount || 0;
+        extraItemsSum += amt;
+        if (isTaxable1Percent(item.name)) {
+          taxableExtraSum += amt;
+        }
       });
     }
 
-    subtotal = transportSum + overtimeSum + xraySum + otherSum + extraItemsSum;
-    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ Transportation (ค่าขนส่ง) + Overtime (ค่าล่วงเวลา) รวม 2 รายการนี้เท่านั้น
-    const taxableBase = transportSum + overtimeSum;
+    subtotal = transportSum + taxableExpensesSum + nonTaxableExpensesSum + extraItemsSum;
+    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการค่าขนส่ง + Overtime + X-ray + เปิดตรวจ + ลากตู้เปล่า, ลากตู้หนัก + ค้างหาง
+    const taxableBase = transportSum + taxableExpensesSum + taxableExtraSum;
     withholdingTax = Math.round(taxableBase * 0.01 * 100) / 100;
     vatAmount = 0;
     grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
@@ -728,6 +718,10 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                                         <option value="Drop">Drop</option>
                                         <option value="Overtime">Overtime</option>
                                         <option value="X-ray">X-ray (ค่าเอ็กซ์เรย์)</option>
+                                        <option value="เปิดตรวจ">เปิดตรวจ</option>
+                                        <option value="ลากตู้เปล่า">ลากตู้เปล่า</option>
+                                        <option value="ลากตู้หนัก">ลากตู้หนัก</option>
+                                        <option value="ค้างหาง">ค้างหาง</option>
                                         <option value="Container Handling">Container Handling</option>
                                         <option value="ADMISSION FEE">ADMISSION FEE</option>
                                         <option value="Other">Other (อื่นๆ)</option>
@@ -1431,7 +1425,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </div>
                     {previewInvoice.invoiceType === 'Transport' ? (
                       <div className="flex justify-between text-red-650 font-semibold border-b border-slate-200 pb-1">
-                        <span>ภาษีหัก ณ ที่จ่าย 1% </span>
+                        <span>ภาษีหัก ณ ที่จ่าย 1%</span>
                         <span>{formatCurrency(previewTotals.withholdingTax)}</span>
                       </div>
                     ) : (

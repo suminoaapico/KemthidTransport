@@ -4,7 +4,7 @@ import {
   Layers, CheckCircle, HelpCircle
 } from 'lucide-react';
 import { Receipt, Invoice, Customer } from '../types';
-import { arabicToThaiBaht, formatCurrency } from '../utils';
+import { arabicToThaiBaht, formatCurrency, isTaxable1Percent } from '../utils';
 
 function formatReceiptDate(dateStr: string) {
   if (!dateStr) return '';
@@ -24,8 +24,14 @@ export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
   let transportSum = 0;
   let overtimeSum = 0;
   let xraySum = 0;
+  let openInspectionSum = 0;
+  let haulageSum = 0;
+  let trailerHoldingSum = 0;
   let otherSum = 0;
+  let taxableExpensesSum = 0;
+  let nonTaxableExpensesSum = 0;
   let extraSum = 0;
+  let taxableExtraSum = 0;
   let advanceSubtotal = 0;
 
   if (receiptType === 'Transport') {
@@ -34,49 +40,73 @@ export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
         inv.containers?.forEach(c => {
           transportSum += (c.transportation || 0);
 
-          let hasOvertimeInExpenses = false;
-          let hasXrayInExpenses = false;
-          if (c.expenses) {
-            hasOvertimeInExpenses = c.expenses.some(exp => exp.name === 'Overtime');
-            hasXrayInExpenses = c.expenses.some(exp => exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey');
-          }
-
-          otherSum += (c.portCharge || 0) + (c.containerHandling || 0) + (c.liftOnOff || 0);
+          nonTaxableExpensesSum += (c.portCharge || 0) + (c.containerHandling || 0) + (c.liftOnOff || 0);
 
           if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
-            const name = c.otherExpenseName || '';
-            if (name === 'Overtime') {
-              if (!hasOvertimeInExpenses) overtimeSum += c.otherExpenseAmount;
-            } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
-              if (!hasXrayInExpenses) xraySum += c.otherExpenseAmount;
+            const name = (c.otherExpenseName || '').trim().toLowerCase();
+            const amt = c.otherExpenseAmount;
+            if (name === 'overtime') {
+              overtimeSum += amt;
+            } else if (name === 'x-ray' || name === 'x-rey' || name === 'ค่า x-ray' || name === 'ค่า x-rey') {
+              xraySum += amt;
+              taxableExpensesSum += amt;
+            } else if (name === 'เปิดตรวจ' || name === 'ค่าเปิดตรวจ') {
+              openInspectionSum += amt;
+              taxableExpensesSum += amt;
+            } else if (name === 'ลากตู้เปล่า' || name === 'ลากตู้หนัก') {
+              haulageSum += amt;
+              taxableExpensesSum += amt;
+            } else if (name === 'ค้างหาง' || name === 'ค่าค้างหาง') {
+              trailerHoldingSum += amt;
+              taxableExpensesSum += amt;
+            } else if (isTaxable1Percent(c.otherExpenseName || '')) {
+              otherSum += amt;
+              taxableExpensesSum += amt;
             } else {
-              otherSum += c.otherExpenseAmount;
+              nonTaxableExpensesSum += amt;
             }
           }
 
           if (c.expenses) {
             c.expenses.forEach(exp => {
-              const name = exp.name || '';
-              if (name === 'Overtime') {
-                overtimeSum += exp.amount || 0;
-              } else if (name === 'X-ray' || name === 'X-rey' || name === 'ค่า X-ray' || name === 'ค่า X-rey') {
-                xraySum += exp.amount || 0;
+              const name = (exp.name || '').trim().toLowerCase();
+              const amt = exp.amount || 0;
+              if (name === 'overtime') {
+                overtimeSum += amt;
+              } else if (name === 'x-ray' || name === 'x-rey' || name === 'ค่า x-ray' || name === 'ค่า x-rey') {
+                xraySum += amt;
+                taxableExpensesSum += amt;
+              } else if (name === 'เปิดตรวจ' || name === 'ค่าเปิดตรวจ') {
+                openInspectionSum += amt;
+                taxableExpensesSum += amt;
+              } else if (name === 'ลากตู้เปล่า' || name === 'ลากตู้หนัก') {
+                haulageSum += amt;
+                taxableExpensesSum += amt;
+              } else if (name === 'ค้างหาง' || name === 'ค่าค้างหาง') {
+                trailerHoldingSum += amt;
+                taxableExpensesSum += amt;
+              } else if (isTaxable1Percent(exp.name)) {
+                otherSum += amt;
+                taxableExpensesSum += amt;
               } else {
-                otherSum += exp.amount || 0;
+                nonTaxableExpensesSum += amt;
               }
             });
           }
         });
 
         inv.extraItems?.forEach(item => {
-          extraSum += item.amount || 0;
+          const amt = item.amount || 0;
+          extraSum += amt;
+          if (isTaxable1Percent(item.name)) {
+            taxableExtraSum += amt;
+          }
         });
       }
     });
 
-    const subtotal = transportSum + overtimeSum + xraySum + otherSum + extraSum;
-    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ Transportation (ค่าขนส่ง) + Overtime (ค่าล่วงเวลา) รวม 2 รายการนี้เท่านั้น
-    const taxableBase = transportSum + overtimeSum;
+    const subtotal = transportSum + taxableExpensesSum + nonTaxableExpensesSum + extraSum;
+    const taxableBase = taxableExpensesSum + taxableExtraSum;
     const withholdingTax = Math.round(taxableBase * 0.01 * 100) / 100;
     const vatAmount = 0;
     const grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
@@ -86,7 +116,12 @@ export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
       transportSum,
       overtimeSum,
       xraySum,
+      openInspectionSum,
+      haulageSum,
+      trailerHoldingSum,
       otherSum,
+      taxableExpensesSum,
+      nonTaxableExpensesSum,
       extraSum,
       subtotal,
       withholdingTax,
@@ -556,7 +591,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                             </div>
                           )}
                           <div className="flex justify-between items-center text-red-650 font-medium">
-                            <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง + OT: {formatCurrency(totals.transportSum + totals.overtimeSum)} × 1%):</span>
+                            <span>ภาษีหัก ณ ที่จ่าย 1%:</span>
                             <span className="font-mono font-bold text-red-650">-{formatCurrency(totals.withholdingTax)} บ.</span>
                           </div>
                         </>
@@ -910,7 +945,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                         </div>
                         {isTransport ? (
                           <div className="flex justify-between text-red-650 font-semibold border-b border-slate-150 pb-1">
-                            <span>ภาษีหัก ณ ที่จ่าย 1% (เฉพาะค่าขนส่ง + OT)</span>
+                            <span>ภาษีหัก ณ ที่จ่าย 1%</span>
                             <span>{formatCurrency(withholdingTax)}</span>
                           </div>
                         ) : (
