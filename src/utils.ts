@@ -1,3 +1,5 @@
+import type { DailyExpense, DailyExpenseType, ExpenseCategory } from './types';
+
 /**
  * Converts a numeric value into the official Thai Baht text representation.
  * Example: 4158.00 -> "สี่พันหนึ่งร้อยห้าสิบแปดบาทถ้วน"
@@ -227,5 +229,135 @@ export function isTaxable1Percent(name: string): boolean {
     n === 'ค่าค้างหาง'
   );
 }
+
+export const DRIVER_EXPENSE_TYPES: DailyExpenseType[] = [
+  'ค่าจ้างคนขับรถ',
+  'ค่าเที่ยวรถ',
+  'ค่าขนส่งที่จ่ายให้คนขับรถ',
+  'ค่าใช้จ่ายคนขับรถ',
+  'ค่าแรงคนขับรถ',
+];
+
+export const GENERAL_NORMAL_EXPENSE_TYPES: DailyExpenseType[] = [
+  'น้ำมัน',
+  'ค่าน้ำมัน',
+  'ค่าอาหาร',
+  'ทางด่วน',
+  'ค่าทางด่วน',
+  'ค่าซ่อม',
+  'ค่าโรงแรม',
+  'ค่าอุปกรณ์สำนักงาน',
+  'ค่าเดินทางทั่วไป',
+  'ค่าใช้จ่ายบริษัททั่วไป',
+  'advance รถร่วม',
+  'ค่าแรง',
+  'อื่นๆ',
+];
+
+export const GENERAL_ADV_EXPENSE_TYPES: DailyExpenseType[] = [
+  'Life on / Life off',
+  'Port Charge',
+  'Shore',
+  'Drop',
+  'อื่นๆ',
+];
+
+export const ALL_EXPENSE_TYPES: DailyExpenseType[] = Array.from(
+  new Set([
+    ...DRIVER_EXPENSE_TYPES,
+    ...GENERAL_NORMAL_EXPENSE_TYPES,
+    ...GENERAL_ADV_EXPENSE_TYPES,
+  ])
+);
+
+/**
+ * Determines whether an expense is categorized as a "Driver" expense
+ * eligible for 1% Withholding Tax deduction.
+ */
+export function isDriverExpenseType(
+  type?: string | null,
+  explicitCategory?: ExpenseCategory | null
+): boolean {
+  if (explicitCategory === 'driver') return true;
+  if (explicitCategory === 'general') return false;
+  if (!type) return false;
+  const trimmed = type.trim();
+  if ((DRIVER_EXPENSE_TYPES as string[]).includes(trimmed)) return true;
+  return trimmed.includes('คนขับรถ') || trimmed.includes('ค่าเที่ยว');
+}
+
+export interface DriverTaxCalculationResult {
+  expenseCategory: ExpenseCategory;
+  amount: number;
+  withholdingTaxRate: 0 | 1;
+  withholdingTaxAmount: number;
+  netAmount: number;
+}
+
+/**
+ * Business Rule: 1% Withholding Tax applies ONLY to Driver-related expenses.
+ * Non-driver expenses (food, fuel, hotel, office supplies, general) have 0% WHT.
+ */
+export function calculateDriverExpenseTax(
+  amount: number,
+  expenseCategory: ExpenseCategory
+): DriverTaxCalculationResult {
+  const safeAmount =
+    Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) / 100 : 0;
+
+  if (expenseCategory === 'driver') {
+    const withholdingTaxAmount = Math.round(safeAmount * 0.01 * 100) / 100;
+    const netAmount = Math.round((safeAmount - withholdingTaxAmount) * 100) / 100;
+    return {
+      expenseCategory: 'driver',
+      amount: safeAmount,
+      withholdingTaxRate: 1,
+      withholdingTaxAmount,
+      netAmount,
+    };
+  }
+
+  return {
+    expenseCategory: 'general',
+    amount: safeAmount,
+    withholdingTaxRate: 0,
+    withholdingTaxAmount: 0,
+    netAmount: safeAmount,
+  };
+}
+
+/**
+ * Normalizes any DailyExpense record (including legacy Firestore docs)
+ * so tax fields are always consistent with the 1% Driver WHT rule.
+ */
+export function normalizeExpenseRecord(exp: Partial<DailyExpense>): DailyExpense {
+  const rawType = (exp.type || 'อื่นๆ') as DailyExpenseType;
+  const resolvedCategory: ExpenseCategory =
+    exp.expenseCategory === 'driver' || exp.expenseCategory === 'general'
+      ? exp.expenseCategory
+      : isDriverExpenseType(rawType)
+        ? 'driver'
+        : 'general';
+  const calc = calculateDriverExpenseTax(Number(exp.amount) || 0, resolvedCategory);
+
+  return {
+    id: exp.id || '',
+    jobNo: exp.jobNo || '',
+    containerNo: exp.containerNo || '',
+    date: exp.date || '',
+    type: rawType,
+    expenseCategory: calc.expenseCategory,
+    description: exp.description || '',
+    vehicleLicense: exp.vehicleLicense || '',
+    driverName: exp.driverName || '',
+    amount: calc.amount,
+    withholdingTaxRate: calc.withholdingTaxRate,
+    withholdingTaxAmount: calc.withholdingTaxAmount,
+    netAmount: calc.netAmount,
+    note: exp.note || '',
+    billType: exp.billType === 'Adv' ? 'Adv' : 'Normal',
+  };
+}
+
 
 

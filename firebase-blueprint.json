@@ -1,0 +1,434 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile and application role",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "displayName": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["admin", "staff", "manager"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role", "createdAt", "updatedAt"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Logistics client account and billing information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "name": { "type": "string", "maxLength": 200 },
+        "company": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 60 },
+        "line": { "type": "string", "maxLength": 100 },
+        "creditTerm": { "type": "number" },
+        "address": { "type": "string", "maxLength": 500 },
+        "taxId": { "type": "string", "maxLength": 50 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "company", "phone", "line", "creditTerm", "address", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Driver": {
+      "title": "Driver",
+      "description": "Truck driver registry record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "name": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 60 },
+        "licenseNo": { "type": "string", "maxLength": 100 },
+        "expiryDate": { "type": "string", "maxLength": 50 },
+        "vehicleLicense": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["Available", "On Duty"] },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "phone", "licenseNo", "expiryDate", "vehicleLicense", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Fleet vehicle or subcontractor truck record",
+      "type": "object",
+      "properties": {
+        "licensePlate": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "maxLength": 100 },
+        "brand": { "type": "string", "maxLength": 100 },
+        "year": { "type": "string", "maxLength": 20 },
+        "actExpiry": { "type": "string", "maxLength": 50 },
+        "insExpiry": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["Available", "Maintenance"] },
+        "ownerType": { "type": "string", "enum": ["company", "subcontractor"] },
+        "driverId": { "type": "string", "maxLength": 100 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["licensePlate", "type", "brand", "year", "actExpiry", "insExpiry", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Employee": {
+      "title": "Employee",
+      "description": "Company staff registry record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "name": { "type": "string", "maxLength": 200 },
+        "position": { "type": "string", "maxLength": 150 },
+        "department": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 60 },
+        "salary": { "type": "number" },
+        "startDate": { "type": "string", "maxLength": 50 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "position", "department", "phone", "salary", "startDate", "ownerId", "createdAt", "updatedAt"]
+    },
+    "TransportJob": {
+      "title": "TransportJob",
+      "description": "Container transport dispatch job and container charges",
+      "type": "object",
+      "properties": {
+        "jobNo": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "customerId": { "type": "string", "maxLength": 100 },
+        "customerName": { "type": "string", "maxLength": 200 },
+        "origin": { "type": "string", "maxLength": 300 },
+        "destination": { "type": "string", "maxLength": 300 },
+        "vehicleLicense": { "type": "string", "maxLength": 100 },
+        "driverName": { "type": "string", "maxLength": 200 },
+        "driverNames": { "type": "array" },
+        "vehicleType": { "type": "string", "maxLength": 100 },
+        "bookingNo": { "type": "string", "maxLength": 150 },
+        "shipper": { "type": "string", "maxLength": 200 },
+        "containers": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["รอดำเนินการ", "กำลังขนส่ง", "ส่งแล้ว", "วางบิลแล้ว", "รับเงินแล้ว"] },
+        "jobType": { "type": "string", "enum": ["Import", "Export"] },
+        "quantity": { "type": "number" },
+        "containerSize": { "type": "string", "maxLength": 50 },
+        "shipAgent": { "type": "string", "maxLength": 200 },
+        "pickupAt": { "type": "string", "maxLength": 100 },
+        "loadAt": { "type": "string", "maxLength": 100 },
+        "returnAt": { "type": "string", "maxLength": 100 },
+        "pickupLocation": { "type": "string", "maxLength": 300 },
+        "returnLocation": { "type": "string", "maxLength": 300 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["jobNo", "date", "customerId", "customerName", "origin", "destination", "vehicleLicense", "driverName", "vehicleType", "bookingNo", "shipper", "containers", "totalAmount", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "DailyExpense": {
+      "title": "DailyExpense",
+      "description": "Daily operational trip expense and driver expense with 1% withholding tax rule",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "jobNo": { "type": "string", "maxLength": 100 },
+        "containerNo": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "type": {
+          "type": "string",
+          "enum": [
+            "ค่าจ้างคนขับรถ",
+            "ค่าเที่ยวรถ",
+            "ค่าขนส่งที่จ่ายให้คนขับรถ",
+            "ค่าใช้จ่ายคนขับรถ",
+            "ค่าแรงคนขับรถ",
+            "น้ำมัน",
+            "ค่าน้ำมัน",
+            "ค่าอาหาร",
+            "ทางด่วน",
+            "ค่าทางด่วน",
+            "ค่าซ่อม",
+            "ค่าแรง",
+            "ค่าโรงแรม",
+            "ค่าอุปกรณ์สำนักงาน",
+            "ค่าเดินทางทั่วไป",
+            "ค่าใช้จ่ายบริษัททั่วไป",
+            "advance รถร่วม",
+            "Life on / Life off",
+            "Port Charge",
+            "Shore",
+            "Drop",
+            "อื่นๆ"
+          ]
+        },
+        "expenseCategory": { "type": "string", "enum": ["driver", "general"] },
+        "description": { "type": "string", "maxLength": 500 },
+        "vehicleLicense": { "type": "string", "maxLength": 100 },
+        "driverName": { "type": "string", "maxLength": 200 },
+        "amount": { "type": "number" },
+        "withholdingTaxRate": { "type": "number" },
+        "withholdingTaxAmount": { "type": "number" },
+        "netAmount": { "type": "number" },
+        "note": { "type": "string", "maxLength": 500 },
+        "billType": { "type": "string", "enum": ["Normal", "Adv"] },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "jobNo",
+        "date",
+        "type",
+        "expenseCategory",
+        "description",
+        "vehicleLicense",
+        "driverName",
+        "amount",
+        "withholdingTaxRate",
+        "withholdingTaxAmount",
+        "netAmount",
+        "note",
+        "billType",
+        "ownerId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CreditIncome": {
+      "title": "CreditIncome",
+      "description": "Accounts receivable credit term tracker",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "customerName": { "type": "string", "maxLength": 200 },
+        "billingDate": { "type": "string", "maxLength": 50 },
+        "creditTerms": { "type": "number" },
+        "dueDate": { "type": "string", "maxLength": 50 },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["ยังไม่ถึงกำหนด", "ใกล้ครบกำหนด", "เกินกำหนด", "รับเงินแล้ว"] },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "customerName", "billingDate", "creditTerms", "dueDate", "amount", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Billing invoice for transport or advance charges",
+      "type": "object",
+      "properties": {
+        "invoiceNo": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "customerId": { "type": "string", "maxLength": 100 },
+        "customerName": { "type": "string", "maxLength": 200 },
+        "jobNo": { "type": "string", "maxLength": 200 },
+        "invoiceType": { "type": "string", "enum": ["Transport", "Advance"] },
+        "bookingNo": { "type": "string", "maxLength": 150 },
+        "shipper": { "type": "string", "maxLength": 200 },
+        "containers": { "type": "array" },
+        "advanceItems": { "type": "array" },
+        "extraItems": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "withholdingTax": { "type": "number" },
+        "vatAmount": { "type": "number" },
+        "grandTotal": { "type": "number" },
+        "totalText": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["ยังไม่จ่าย", "จ่ายแล้ว"] },
+        "remark": { "type": "string", "maxLength": 1000 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["invoiceNo", "date", "customerId", "customerName", "jobNo", "invoiceType", "bookingNo", "shipper", "containers", "advanceItems", "subtotal", "withholdingTax", "vatAmount", "grandTotal", "totalText", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Receipt": {
+      "title": "Receipt",
+      "description": "Customer payment receipt linked to invoices",
+      "type": "object",
+      "properties": {
+        "receiptNo": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "invoiceNo": { "type": "string", "maxLength": 500 },
+        "customerName": { "type": "string", "maxLength": 200 },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["เงินสด", "โอนเงิน", "เช็ค"] },
+        "receiptType": { "type": "string", "enum": ["Transport", "Advance"] },
+        "remark": { "type": "string", "maxLength": 1000 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["receiptNo", "date", "invoiceNo", "customerName", "amount", "paymentMethod", "receiptType", "ownerId", "createdAt", "updatedAt"]
+    },
+    "ManagerEntry": {
+      "title": "ManagerEntry",
+      "description": "Manager income and expense ledger entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "type": { "type": "string", "enum": ["INCOME", "EXPENSE"] },
+        "category": { "type": "string", "maxLength": 150 },
+        "title": { "type": "string", "maxLength": 300 },
+        "amount": { "type": "number" },
+        "recordedBy": { "type": "string", "maxLength": 150 },
+        "referenceNo": { "type": "string", "maxLength": 150 },
+        "note": { "type": "string", "maxLength": 1000 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "date", "type", "category", "title", "amount", "ownerId", "createdAt", "updatedAt"]
+    },
+    "SubcontractorPaymentDoc": {
+      "title": "SubcontractorPaymentDoc",
+      "description": "Subcontractor trip payout voucher with 1% WHT and advances",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "paymentNo": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "partnerName": { "type": "string", "maxLength": 200 },
+        "vehicleLicense": { "type": "string", "maxLength": 100 },
+        "paymentCycle": { "type": "string", "maxLength": 100 },
+        "trips": { "type": "array" },
+        "subtotalPrice": { "type": "number" },
+        "subtotalOt": { "type": "number" },
+        "totalBeforeDeductions": { "type": "number" },
+        "advanceDeduction": { "type": "number" },
+        "withholdingTax": { "type": "number" },
+        "grandTotal": { "type": "number" },
+        "status": { "type": "string", "enum": ["ยังไม่ได้จ่าย", "จ่ายแล้ว"] },
+        "note": { "type": "string", "maxLength": 1000 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "paymentNo", "date", "partnerName", "vehicleLicense", "paymentCycle", "trips", "subtotalPrice", "subtotalOt", "totalBeforeDeductions", "advanceDeduction", "withholdingTax", "grandTotal", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "PartnerPayment": {
+      "title": "PartnerPayment",
+      "description": "Co-loader or rental truck payment ledger entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "partnerName": { "type": "string", "maxLength": 200 },
+        "jobNo": { "type": "string", "maxLength": 100 },
+        "paymentType": { "type": "string", "enum": ["PAY_PARTNER", "RENT_CAR"] },
+        "revenue": { "type": "number" },
+        "expensesDeduction": { "type": "number" },
+        "netPaid": { "type": "number" },
+        "status": { "type": "string", "enum": ["ยังไม่ได้เคลียร์", "จ่ายแล้ว"] },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "date", "partnerName", "jobNo", "paymentType", "revenue", "expensesDeduction", "netPaid", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "WithholdingTaxRecord": {
+      "title": "WithholdingTaxRecord",
+      "description": "Withholding tax certificate register (1% / 3%)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "payeeName": { "type": "string", "maxLength": 200 },
+        "taxIDNumber": { "type": "string", "maxLength": 50 },
+        "baseAmount": { "type": "number" },
+        "rate": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "type": { "type": "string", "enum": ["Transportation", "Service", "Other"] },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "date", "payeeName", "taxIDNumber", "baseAmount", "rate", "taxAmount", "type", "ownerId", "createdAt", "updatedAt"]
+    },
+    "PayrollRecord": {
+      "title": "PayrollRecord",
+      "description": "Employee and driver monthly payroll slip record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "employeeId": { "type": "string", "maxLength": 100 },
+        "employeeName": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["Driver", "Staff"] },
+        "payDate": { "type": "string", "maxLength": 50 },
+        "salary": { "type": "number" },
+        "ot": { "type": "number" },
+        "bonus": { "type": "number" },
+        "deduction": { "type": "number" },
+        "netSalary": { "type": "number" },
+        "status": { "type": "string", "enum": ["Paid", "Unpaid"] },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "employeeId", "employeeName", "role", "payDate", "salary", "ot", "bonus", "deduction", "netSalary", "status", "ownerId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles and RBAC role assignments"
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Logistics customers registry"
+    },
+    "/drivers/{driverId}": {
+      "schema": { "$ref": "#/entities/Driver" },
+      "description": "Drivers registry"
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Company and subcontractor vehicles registry"
+    },
+    "/employees/{employeeId}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Staff employees registry"
+    },
+    "/transport_jobs/{jobId}": {
+      "schema": { "$ref": "#/entities/TransportJob" },
+      "description": "Transport dispatch jobs and container charges"
+    },
+    "/daily_expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/DailyExpense" },
+      "description": "Daily operational trip expenses"
+    },
+    "/credit_incomes/{incomeId}": {
+      "schema": { "$ref": "#/entities/CreditIncome" },
+      "description": "Credit accounts receivable tracker"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": { "$ref": "#/entities/Invoice" },
+      "description": "Transport and advance billing invoices"
+    },
+    "/receipts/{receiptId}": {
+      "schema": { "$ref": "#/entities/Receipt" },
+      "description": "Payment receipts linked to invoices"
+    },
+    "/manager_entries/{entryId}": {
+      "schema": { "$ref": "#/entities/ManagerEntry" },
+      "description": "Manager income and expense ledger"
+    },
+    "/subcontractor_payment_docs/{docId}": {
+      "schema": { "$ref": "#/entities/SubcontractorPaymentDoc" },
+      "description": "Subcontractor trip payout documents"
+    },
+    "/partner_payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/PartnerPayment" },
+      "description": "Partner and rental truck payments"
+    },
+    "/withholding_taxes/{taxId}": {
+      "schema": { "$ref": "#/entities/WithholdingTaxRecord" },
+      "description": "Withholding tax 1% and 3% register"
+    },
+    "/payroll/{payrollId}": {
+      "schema": { "$ref": "#/entities/PayrollRecord" },
+      "description": "Driver and staff payroll records"
+    }
+  }
+}

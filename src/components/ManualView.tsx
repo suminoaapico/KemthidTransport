@@ -56,7 +56,7 @@ export function ManualView() {
     { id: 'invoices', title: '📄 การออกใบแจ้งหนี้ (ภาษีหัก ณ ที่จ่าย 1%)' },
     { id: 'receipts', title: '🧾 การออกใบเสร็จรับเงิน (ปิดใบงาน)' },
     { id: 'finance', title: '💼 รถร่วม, เงินเดือนพนักงาน & งบกำไรขาดทุน P&L' },
-    { id: 'supabase', title: '⚡ การจัดการ Supabase SQL & การสำรอง Google Sheets' }
+    { id: 'firebase', title: '🔥 ระบบฐานข้อมูลคลาวด์ Firebase Firestore (14 ตาราง)' }
   ];
 
   return (
@@ -105,10 +105,10 @@ export function ManualView() {
           <div className="pt-6 border-t border-slate-200 mt-6 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
             <h4 className="text-[11px] font-black text-indigo-950 uppercase flex items-center gap-1">
               <Award className="w-3.5 h-3.5 text-indigo-600" />
-              ข้อกำหนดและสิทธิ์ RLS
+              ข้อกำหนดและสิทธิ์ Firebase Rules
             </h4>
             <p className="text-[10px] text-indigo-900 leading-relaxed mt-1.5 font-medium">
-              สถาปัตยกรรมข้อมูลของระบบจะอิงตามสิทธิ์ความปลอดภัยแบบ Row Level Security ของ Supabase ซึ่งอนุญาตให้เครื่องลูกข่ายลงบันทึก .upsert() ข้อมูลได้อย่างเสรีและไม่มีดีเลย์
+              สถาปัตยกรรมข้อมูลของระบบป้องกันด้วย Firebase Authentication และ Firestore Security Rules ที่ตรวจสอบสิทธิ์ผู้ใช้และโครงสร้างข้อมูลทุกคอลเลกชันแบบเรียลไทม์
             </p>
           </div>
         </div>
@@ -222,7 +222,7 @@ export function ManualView() {
                   <div className="space-y-1">
                     <span className="font-black text-emerald-950 block">ระนาบเรียลไทม์ 100% ด้วยคลาวด์พอร์ท</span>
                     <span className="text-emerald-800 block text-[11px] leading-relaxed font-medium">
-                      ทุกๆ คำสั่งบันทึก แก้ไข หรือสั่งลบบนโปรแกรมเบราว์เซอร์ จะทำการยิงคำสั่ง API ตรงผ่าน PostgreSQL ของ <strong className="text-emerald-900">Supabase</strong> ทันที ไม่สูญหายแม้เครื่องดับหรือตัดอินเทอร์เน็ต!
+                      ทุกๆ คำสั่งบันทึก แก้ไข หรือสั่งลบบนโปรแกรมเบราว์เซอร์ จะทำการซิงค์ตรงสู่ฐานข้อมูล <strong className="text-emerald-900">Firebase Cloud Firestore</strong> ทันทีแบบเรียลไทม์ ปลอดภัยและพร้อมใช้งานข้ามอุปกรณ์!
                     </span>
                   </div>
                 </div>
@@ -530,39 +530,39 @@ export function ManualView() {
               </div>
             )}
 
-            {selectedTopic === 'supabase' && (
+            {selectedTopic === 'firebase' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <div className="bg-indigo-50 p-1.5 rounded text-indigo-600">
+                  <div className="bg-amber-50 p-1.5 rounded text-amber-600">
                     <Database className="w-5 h-5" />
                   </div>
                   <h2 className="text-sm font-black text-slate-900 uppercase tracking-wide">
-                    สถาปัตยกรรมคลาวด์ ซิงก์ข้อมูลข้ามระบบ (Cloud Integration & Sync Controls)
+                    สถาปัตยกรรมฐานข้อมูลคลาวด์ Firebase Firestore (Real-Time Sync 100%)
                   </h2>
                 </div>
 
                 <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                  ระบบมาพร้อมกับการเชื่อมสัมพันธมิตรสองส่วนหลัก ได้แก่ ฐานข้อมูล Live API แบ็คเอนด์ และ ระบบก๊อปปี้สํารองข้อมูลลง Google ชีท:
+                  ระบบจัดเก็บและซิงค์ข้อมูลทั้งหมดบนฐานข้อมูล Cloud Firestore ของ Firebase ครบทั้ง 14 คอลเลกชันหลัก พร้อมเข้าใช้งานแยกสิทธิ์ฝ่ายพนักงานและฝ่ายผู้จัดการได้ทันที:
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold">
-                  <div className="p-4 border border-slate-200 rounded-xl space-y-2 bg-gradient-to-br from-emerald-50/50 to-emerald-100/10">
-                    <h4 className="font-bold text-emerald-950 flex items-center gap-1.5 uppercase">
-                      <Database className="w-4 h-4 text-emerald-600" />
-                      1. ตารางหลังระบบ Supabase Live
+                  <div className="p-4 border border-slate-200 rounded-xl space-y-2 bg-gradient-to-br from-amber-50/60 to-amber-100/10">
+                    <h4 className="font-bold text-amber-950 flex items-center gap-1.5 uppercase">
+                      <Database className="w-4 h-4 text-amber-600" />
+                      1. คอลเลกชันครบทุกโมดูล (14 Collections)
                     </h4>
-                    <p className="text-[11px] text-emerald-800 leading-relaxed font-medium">
-                      ระบบจะส่งคำสั่งบันทึกการทำงานตรงไปที่ Supabase Postgres แบบอรรถประโยชน์ ท่านสามารถกดดูชุดโค้ด SQL ตารางแถว 11 ตารางด้านบนและ RLS นโยบายปลอดภัยของ Supabase เพื่อคัดลอกรหัสเข้าป้อนใน SQL Terminal ของตู้เก็บดาต้าของเซิร์ฟเวอร์เพื่อให้พร้อมใช้ 100%
+                    <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
+                      รองรับข้อมูล ลูกค้า, คนขับ, รถขนส่ง, พนักงาน, แผนการวิ่งงาน, ค่าน้ำมัน/ทางด่วน, ใบแจ้งหนี้, ใบเสร็จรับเงิน, เอกสารทำจ่ายรถร่วม, บัญชีรถร่วม, ภาษีหัก ณ ที่จ่าย, เงินเดือน และบันทึกรายรับ-จ่ายผู้จัดการ ครบ 100%
                     </p>
                   </div>
 
                   <div className="p-4 border border-slate-200 rounded-xl space-y-2 bg-gradient-to-br from-indigo-50/50 to-indigo-100/10">
                     <h4 className="font-bold text-indigo-950 flex items-center gap-1.5 uppercase">
                       <CloudLightning className="w-4 h-4 text-indigo-600" />
-                      2. สารบรรณ Google Sheets Sync
+                      2. ซิงค์ข้อมูลอัตโนมัติแบบเรียลไทม์
                     </h4>
                     <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">
-                      ท่านสามารถสำรองไฟล์หลักฐานออกตารางชีทชีท ได้ตลอดเวลา โดยกดปุ่ม <strong>"เชื่อม Google Sheets"</strong> บนหัวบานควบคุม และระบุ Spreadsheet ID พร้อมวาง Access Token สิทธิ์เบราว์เซอร์ จากนั้นก็สามารถสั่งโยนพิมพ์ชุดตารางสารบรรณได้ในคลิกเดียวทันที
+                      ทุกการสร้าง แก้ไข หรือลบเอกสาร จะอัปเดตทันทีข้ามเครื่องผ่าน Firestore Real-Time Listener พร้อมกดปุ่ม <strong>"โครงสร้าง Firebase (14 ตาราง)"</strong> ด้านบนเพื่อดูจำนวนรายการและโครงสร้างฟิลด์ได้ตลอดเวลา
                     </p>
                   </div>
                 </div>
@@ -579,7 +579,7 @@ export function ManualView() {
         <div className="flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-indigo-600 shrink-0" />
           <p className="text-xs text-slate-600 font-medium leading-relaxed">
-            มีปัญหาระบบติดขัดกรณีสิทธิ์การเข้าถึง? ให้ดูสัญลักษณ์จุดสีสัญญาณเชื่อมต่อ <strong className="text-slate-900 font-sans">Supabase Live</strong> ด้านบน หรือ สั่งสแกนเติมข้อมูลดัมมี่เพื่อจำลองหน้างานวิ่งเที่ยวจริง
+            สามารถตรวจสอบโครงสร้างคอลเลกชันและจำนวนข้อมูลปัจจุบันได้จากปุ่ม <strong className="text-slate-900 font-sans">โครงสร้าง Firebase (14 ตาราง)</strong> บนแถบเมนูด้านบน
           </p>
         </div>
         <div className="text-[10px] bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded font-black font-mono">

@@ -79,11 +79,11 @@ export function FinanceView({
   const totalInvoicesSum = invoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
 
   const totalFuelCost = expenses
-    .filter(e => e.type === 'น้ำมัน')
+    .filter(e => e.type === 'น้ำมัน' || e.type === 'ค่าน้ำมัน')
     .reduce((sum, e) => sum + e.amount, 0);
 
   const totalRoadTollCost = expenses
-    .filter(e => e.type === 'ค่าทางด่วน')
+    .filter(e => e.type === 'ค่าทางด่วน' || e.type === 'ทางด่วน')
     .reduce((sum, e) => sum + e.amount, 0);
 
   const totalMaintenanceCost = expenses
@@ -91,7 +91,14 @@ export function FinanceView({
     .reduce((sum, e) => sum + e.amount, 0);
 
   const totalOtherExpenses = expenses
-    .filter(e => e.type !== 'น้ำมัน' && e.type !== 'ค่าทางด่วน' && e.type !== 'ค่าซ่อม')
+    .filter(
+      e =>
+        e.type !== 'น้ำมัน' &&
+        e.type !== 'ค่าน้ำมัน' &&
+        e.type !== 'ค่าทางด่วน' &&
+        e.type !== 'ทางด่วน' &&
+        e.type !== 'ค่าซ่อม'
+    )
     .reduce((sum, e) => sum + e.amount, 0);
 
   const totalCOGS = totalFuelCost + totalRoadTollCost + totalMaintenanceCost;
@@ -511,7 +518,7 @@ export function FinanceView({
               <div className="border-b-2 border-slate-900 pb-4 text-center">
                 <span className="font-sans font-black text-base text-slate-900 block">รายงานกำไรขาดทุนสะสมสุทธิประจำกาลเวลา</span>
                 <span className="font-serif italic font-bold text-slate-500 text-xs">บริษัท เข็มทิศ ทานสปอร์ต จำกัด</span>
-                <p className="text-[10px] text-slate-400 mt-1 font-mono">วิเคราะห์เปรียบเทียบงวดต้นทุนการดำเนินงาน ข้อมูลอัปเดตเรียลไทม์จากระบบ Google Sheet</p>
+                <p className="text-[10px] text-slate-400 mt-1 font-mono">วิเคราะห์เปรียบเทียบงวดต้นทุนการดำเนินงาน ข้อมูลอัปเดตเรียลไทม์จากระบบ Firebase Firestore</p>
               </div>
 
               {/* Data Rows sheet alignment design */}

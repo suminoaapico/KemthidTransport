@@ -1,0 +1,616 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isBootstrapAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'artkitthana12@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isVerifiedUser() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    function isOwner() {
+      return isVerifiedUser() && existing().ownerId == request.auth.uid;
+    }
+
+    function isValidString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    function isOptionalString(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isOptionalNumber(data, field) {
+      return !(field in data) || (data[field] is number);
+    }
+
+    function hasValidAuditOnCreate(data) {
+      return data.ownerId is string &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.createdAt == request.time &&
+        data.updatedAt is timestamp &&
+        data.updatedAt == request.time;
+    }
+
+    function hasValidAuditOnUpdate() {
+      return incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt is timestamp &&
+        incoming().updatedAt == request.time;
+    }
+
+    // 3. Entity Validation Blueprints (Anti-Update-Gap)
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'createdAt', 'updatedAt']) &&
+        data.uid is string && data.uid == userId && isValidId(data.uid) &&
+        isValidString(data.email, 200) &&
+        isValidString(data.displayName, 200) &&
+        data.role in ['admin', 'staff', 'manager'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['id', 'name', 'company', 'phone', 'line', 'creditTerm', 'address', 'ownerId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'company', 'phone', 'line', 'creditTerm', 'address', 'taxId', 'ownerId', 'createdAt', 'updatedAt']) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.name, 200) && data.name.size() >= 1 &&
+        isValidString(data.company, 200) &&
+        isValidString(data.phone, 60) &&
+        isValidString(data.line, 100) &&
+        data.creditTerm is number && data.creditTerm >= 0 && data.creditTerm <= 3650 &&
+        isValidString(data.address, 500) &&
+        isOptionalString(data, 'taxId', 50) &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidDriver(data) {
+      return data.keys().hasAll(['id', 'name', 'phone', 'licenseNo', 'expiryDate', 'vehicleLicense', 'status', 'ownerId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'phone', 'licenseNo', 'expiryDate', 'vehicleLicense', 'status', 'ownerId', 'createdAt', 'updatedAt']) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.name, 200) && data.name.size() >= 1 &&
+        isValidString(data.phone, 60) &&
+        isValidString(data.licenseNo, 100) &&
+        isValidString(data.expiryDate, 50) &&
+        isValidString(data.vehicleLicense, 100) &&
+        data.status in ['Available', 'On Duty'] &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVehicle(data) {
+      return data.keys().hasAll(['licensePlate', 'type', 'brand', 'year', 'actExpiry', 'insExpiry', 'status', 'ownerId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['licensePlate', 'type', 'brand', 'year', 'actExpiry', 'insExpiry', 'status', 'ownerType', 'driverId', 'ownerId', 'createdAt', 'updatedAt']) &&
+        isValidString(data.licensePlate, 100) && data.licensePlate.size() >= 1 &&
+        isValidString(data.type, 100) &&
+        isValidString(data.brand, 100) &&
+        isValidString(data.year, 20) &&
+        isValidString(data.actExpiry, 50) &&
+        isValidString(data.insExpiry, 50) &&
+        data.status in ['Available', 'Maintenance'] &&
+        (!('ownerType' in data) || data.ownerType in ['company', 'subcontractor']) &&
+        isOptionalString(data, 'driverId', 100) &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidEmployee(data) {
+      return data.keys().hasAll(['id', 'name', 'position', 'department', 'phone', 'salary', 'startDate', 'ownerId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'position', 'department', 'phone', 'salary', 'startDate', 'ownerId', 'createdAt', 'updatedAt']) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.name, 200) && data.name.size() >= 1 &&
+        isValidString(data.position, 150) &&
+        isValidString(data.department, 150) &&
+        isValidString(data.phone, 60) &&
+        data.salary is number && data.salary >= 0 &&
+        isValidString(data.startDate, 50) &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidTransportJob(data) {
+      return data.keys().hasAll([
+          'jobNo', 'date', 'customerId', 'customerName', 'origin', 'destination',
+          'vehicleLicense', 'driverName', 'vehicleType', 'bookingNo', 'shipper',
+          'containers', 'totalAmount', 'status', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'jobNo', 'date', 'customerId', 'customerName', 'origin', 'destination',
+          'vehicleLicense', 'driverName', 'driverNames', 'vehicleType', 'bookingNo', 'shipper',
+          'containers', 'totalAmount', 'status', 'jobType', 'quantity', 'containerSize',
+          'shipAgent', 'pickupAt', 'loadAt', 'returnAt', 'pickupLocation', 'returnLocation',
+          'notes', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.jobNo, 100) && data.jobNo.size() >= 1 &&
+        isValidString(data.date, 50) &&
+        isValidString(data.customerId, 100) &&
+        isValidString(data.customerName, 200) &&
+        isValidString(data.origin, 300) &&
+        isValidString(data.destination, 300) &&
+        isValidString(data.vehicleLicense, 100) &&
+        isValidString(data.driverName, 200) &&
+        (!('driverNames' in data) || (data.driverNames is list && data.driverNames.size() <= 10 && (data.driverNames.size() == 0 || data.driverNames[0] is string))) &&
+        isValidString(data.vehicleType, 100) &&
+        isValidString(data.bookingNo, 150) &&
+        isValidString(data.shipper, 200) &&
+        data.containers is list && data.containers.size() <= 50 && (data.containers.size() == 0 || data.containers[0] is map) &&
+        data.totalAmount is number && data.totalAmount >= 0 &&
+        data.status in ['รอดำเนินการ', 'กำลังขนส่ง', 'ส่งแล้ว', 'วางบิลแล้ว', 'รับเงินแล้ว'] &&
+        (!('jobType' in data) || data.jobType in ['Import', 'Export']) &&
+        isOptionalNumber(data, 'quantity') &&
+        isOptionalString(data, 'containerSize', 50) &&
+        isOptionalString(data, 'shipAgent', 200) &&
+        isOptionalString(data, 'pickupAt', 100) &&
+        isOptionalString(data, 'loadAt', 100) &&
+        isOptionalString(data, 'returnAt', 100) &&
+        isOptionalString(data, 'pickupLocation', 300) &&
+        isOptionalString(data, 'returnLocation', 300) &&
+        isOptionalString(data, 'notes', 1000) &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidDailyExpense(data) {
+      return data.keys().hasAll([
+          'id', 'jobNo', 'date', 'type', 'expenseCategory', 'description', 'vehicleLicense',
+          'driverName', 'amount', 'withholdingTaxRate', 'withholdingTaxAmount', 'netAmount',
+          'note', 'billType', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'jobNo', 'containerNo', 'date', 'type', 'expenseCategory', 'description',
+          'vehicleLicense', 'driverName', 'amount', 'withholdingTaxRate', 'withholdingTaxAmount',
+          'netAmount', 'note', 'billType', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.jobNo, 100) &&
+        isOptionalString(data, 'containerNo', 100) &&
+        isValidString(data.date, 50) &&
+        data.type in [
+          'ค่าจ้างคนขับรถ', 'ค่าเที่ยวรถ', 'ค่าขนส่งที่จ่ายให้คนขับรถ', 'ค่าใช้จ่ายคนขับรถ', 'ค่าแรงคนขับรถ',
+          'น้ำมัน', 'ค่าน้ำมัน', 'ค่าอาหาร', 'ทางด่วน', 'ค่าทางด่วน', 'ค่าซ่อม', 'ค่าแรง',
+          'ค่าโรงแรม', 'ค่าอุปกรณ์สำนักงาน', 'ค่าเดินทางทั่วไป', 'ค่าใช้จ่ายบริษัททั่วไป',
+          'advance รถร่วม', 'Life on / Life off', 'Port Charge', 'Shore', 'Drop', 'อื่นๆ'
+        ] &&
+        data.expenseCategory in ['driver', 'general'] &&
+        isValidString(data.description, 500) &&
+        isValidString(data.vehicleLicense, 100) &&
+        isValidString(data.driverName, 200) &&
+        data.amount is number && data.amount >= 0 &&
+        data.withholdingTaxRate is number &&
+        data.withholdingTaxAmount is number && data.withholdingTaxAmount >= 0 &&
+        data.netAmount is number && data.netAmount >= 0 &&
+        (
+          (data.expenseCategory == 'driver' &&
+            data.withholdingTaxRate == 1 &&
+            math.abs(data.withholdingTaxAmount - (math.round(data.amount) / 100.0)) <= 0.02 &&
+            math.abs(data.netAmount - (data.amount - data.withholdingTaxAmount)) <= 0.02) ||
+          (data.expenseCategory == 'general' &&
+            data.withholdingTaxRate == 0 &&
+            data.withholdingTaxAmount == 0 &&
+            math.abs(data.netAmount - data.amount) <= 0.01)
+        ) &&
+        isValidString(data.note, 500) &&
+        data.billType in ['Normal', 'Adv'] &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCreditIncome(data) {
+      return data.keys().hasAll([
+          'id', 'customerName', 'billingDate', 'creditTerms', 'dueDate',
+          'amount', 'status', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'customerName', 'billingDate', 'creditTerms', 'dueDate',
+          'amount', 'status', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.customerName, 200) &&
+        isValidString(data.billingDate, 50) &&
+        data.creditTerms is number && data.creditTerms >= 0 &&
+        isValidString(data.dueDate, 50) &&
+        data.amount is number && data.amount >= 0 &&
+        data.status in ['ยังไม่ถึงกำหนด', 'ใกล้ครบกำหนด', 'เกินกำหนด', 'รับเงินแล้ว'] &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidInvoice(data) {
+      return data.keys().hasAll([
+          'invoiceNo', 'date', 'customerId', 'customerName', 'jobNo', 'invoiceType',
+          'bookingNo', 'shipper', 'containers', 'advanceItems', 'subtotal',
+          'withholdingTax', 'vatAmount', 'grandTotal', 'totalText', 'status',
+          'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'invoiceNo', 'date', 'customerId', 'customerName', 'jobNo', 'invoiceType',
+          'bookingNo', 'shipper', 'containers', 'advanceItems', 'extraItems', 'subtotal',
+          'withholdingTax', 'vatAmount', 'grandTotal', 'totalText', 'status', 'remark',
+          'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.invoiceNo, 100) && data.invoiceNo.size() >= 1 &&
+        isValidString(data.date, 50) &&
+        isValidString(data.customerId, 100) &&
+        isValidString(data.customerName, 200) &&
+        isValidString(data.jobNo, 200) &&
+        data.invoiceType in ['Transport', 'Advance'] &&
+        isValidString(data.bookingNo, 150) &&
+        isValidString(data.shipper, 200) &&
+        data.containers is list && data.containers.size() <= 50 && (data.containers.size() == 0 || data.containers[0] is map) &&
+        data.advanceItems is list && data.advanceItems.size() <= 100 && (data.advanceItems.size() == 0 || data.advanceItems[0] is map) &&
+        (!('extraItems' in data) || (data.extraItems is list && data.extraItems.size() <= 100 && (data.extraItems.size() == 0 || data.extraItems[0] is map))) &&
+        data.subtotal is number && data.subtotal >= 0 &&
+        data.withholdingTax is number && data.withholdingTax >= 0 &&
+        data.vatAmount is number && data.vatAmount >= 0 &&
+        data.grandTotal is number && data.grandTotal >= 0 &&
+        isValidString(data.totalText, 500) &&
+        data.status in ['ยังไม่จ่าย', 'จ่ายแล้ว'] &&
+        isOptionalString(data, 'remark', 1000) &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidReceipt(data) {
+      return data.keys().hasAll([
+          'receiptNo', 'date', 'invoiceNo', 'customerName', 'amount',
+          'paymentMethod', 'receiptType', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'receiptNo', 'date', 'invoiceNo', 'customerName', 'amount',
+          'paymentMethod', 'receiptType', 'remark', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.receiptNo, 100) && data.receiptNo.size() >= 1 &&
+        isValidString(data.date, 50) &&
+        isValidString(data.invoiceNo, 500) &&
+        isValidString(data.customerName, 200) &&
+        data.amount is number && data.amount >= 0 &&
+        data.paymentMethod in ['เงินสด', 'โอนเงิน', 'เช็ค'] &&
+        data.receiptType in ['Transport', 'Advance'] &&
+        isOptionalString(data, 'remark', 1000) &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidManagerEntry(data) {
+      return data.keys().hasAll([
+          'id', 'date', 'type', 'category', 'title', 'amount',
+          'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'date', 'type', 'category', 'title', 'amount',
+          'recordedBy', 'referenceNo', 'note', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.date, 50) &&
+        data.type in ['INCOME', 'EXPENSE'] &&
+        isValidString(data.category, 150) &&
+        isValidString(data.title, 300) &&
+        data.amount is number && data.amount >= 0 &&
+        isOptionalString(data, 'recordedBy', 150) &&
+        isOptionalString(data, 'referenceNo', 150) &&
+        isOptionalString(data, 'note', 1000) &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSubcontractorPaymentDoc(data) {
+      return data.keys().hasAll([
+          'id', 'paymentNo', 'date', 'partnerName', 'vehicleLicense', 'paymentCycle',
+          'trips', 'subtotalPrice', 'subtotalOt', 'totalBeforeDeductions',
+          'advanceDeduction', 'withholdingTax', 'grandTotal', 'status',
+          'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'paymentNo', 'date', 'partnerName', 'vehicleLicense', 'paymentCycle',
+          'trips', 'subtotalPrice', 'subtotalOt', 'totalBeforeDeductions',
+          'advanceDeduction', 'withholdingTax', 'grandTotal', 'status', 'note',
+          'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.paymentNo, 100) &&
+        isValidString(data.date, 50) &&
+        isValidString(data.partnerName, 200) &&
+        isValidString(data.vehicleLicense, 100) &&
+        isValidString(data.paymentCycle, 100) &&
+        data.trips is list && data.trips.size() <= 100 && (data.trips.size() == 0 || data.trips[0] is map) &&
+        data.subtotalPrice is number &&
+        data.subtotalOt is number &&
+        data.totalBeforeDeductions is number &&
+        data.advanceDeduction is number &&
+        data.withholdingTax is number &&
+        data.grandTotal is number &&
+        data.status in ['ยังไม่ได้จ่าย', 'จ่ายแล้ว'] &&
+        isOptionalString(data, 'note', 1000) &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPartnerPayment(data) {
+      return data.keys().hasAll([
+          'id', 'date', 'partnerName', 'jobNo', 'paymentType', 'revenue',
+          'expensesDeduction', 'netPaid', 'status', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'date', 'partnerName', 'jobNo', 'paymentType', 'revenue',
+          'expensesDeduction', 'netPaid', 'status', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.date, 50) &&
+        isValidString(data.partnerName, 200) &&
+        isValidString(data.jobNo, 100) &&
+        data.paymentType in ['PAY_PARTNER', 'RENT_CAR'] &&
+        data.revenue is number &&
+        data.expensesDeduction is number &&
+        data.netPaid is number &&
+        data.status in ['ยังไม่ได้เคลียร์', 'จ่ายแล้ว'] &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidWithholdingTax(data) {
+      return data.keys().hasAll([
+          'id', 'date', 'payeeName', 'taxIDNumber', 'baseAmount', 'rate',
+          'taxAmount', 'type', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'date', 'payeeName', 'taxIDNumber', 'baseAmount', 'rate',
+          'taxAmount', 'type', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.date, 50) &&
+        isValidString(data.payeeName, 200) &&
+        isValidString(data.taxIDNumber, 50) &&
+        data.baseAmount is number && data.baseAmount >= 0 &&
+        data.rate is number && data.rate >= 0 && data.rate <= 100 &&
+        data.taxAmount is number && data.taxAmount >= 0 &&
+        data.type in ['Transportation', 'Service', 'Other'] &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPayroll(data) {
+      return data.keys().hasAll([
+          'id', 'employeeId', 'employeeName', 'role', 'payDate', 'salary',
+          'ot', 'bonus', 'deduction', 'netSalary', 'status',
+          'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'employeeId', 'employeeName', 'role', 'payDate', 'salary',
+          'ot', 'bonus', 'deduction', 'netSalary', 'status',
+          'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.employeeId, 100) &&
+        isValidString(data.employeeName, 200) &&
+        data.role in ['Driver', 'Staff'] &&
+        isValidString(data.payDate, 50) &&
+        data.salary is number && data.salary >= 0 &&
+        data.ot is number && data.ot >= 0 &&
+        data.bonus is number && data.bonus >= 0 &&
+        data.deduction is number && data.deduction >= 0 &&
+        data.netSalary is number &&
+        data.status in ['Paid', 'Unpaid'] &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // 4. Collection Match Blocks (All 15 Collections)
+
+    match /users/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.uid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time && (
+          (request.auth.uid == userId && incoming().role == 'staff') ||
+          isAdmin()
+        );
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'role', 'updatedAt'])) ||
+          (request.auth.uid == userId && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt']))
+        );
+      allow delete: if isVerifiedUser() && isValidId(userId) && isAdmin();
+    }
+
+    match /customers/{customerId} {
+      allow get: if isValidId(customerId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(customerId) && isValidCustomer(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(customerId) && isValidCustomer(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['id', 'name', 'company', 'phone', 'line', 'creditTerm', 'address', 'taxId', 'updatedAt']);
+      allow delete: if isValidId(customerId);
+    }
+
+    match /drivers/{driverId} {
+      allow get: if isValidId(driverId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(driverId) && isValidDriver(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(driverId) && isValidDriver(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['id', 'name', 'phone', 'licenseNo', 'expiryDate', 'vehicleLicense', 'status', 'updatedAt']);
+      allow delete: if isValidId(driverId);
+    }
+
+    match /vehicles/{vehicleId} {
+      allow get: if isValidId(vehicleId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(vehicleId) && isValidVehicle(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(vehicleId) && isValidVehicle(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['licensePlate', 'type', 'brand', 'year', 'actExpiry', 'insExpiry', 'status', 'ownerType', 'driverId', 'updatedAt']);
+      allow delete: if isValidId(vehicleId);
+    }
+
+    match /employees/{employeeId} {
+      allow get: if isValidId(employeeId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(employeeId) && isValidEmployee(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(employeeId) && isValidEmployee(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['id', 'name', 'position', 'department', 'phone', 'salary', 'startDate', 'updatedAt']);
+      allow delete: if isValidId(employeeId);
+    }
+
+    match /transport_jobs/{jobId} {
+      allow get: if isValidId(jobId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(jobId) && isValidTransportJob(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(jobId) && isValidTransportJob(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'jobNo', 'date', 'customerId', 'customerName', 'origin', 'destination',
+          'vehicleLicense', 'driverName', 'driverNames', 'vehicleType', 'bookingNo', 'shipper',
+          'containers', 'totalAmount', 'status', 'jobType', 'quantity', 'containerSize',
+          'shipAgent', 'pickupAt', 'loadAt', 'returnAt', 'pickupLocation', 'returnLocation',
+          'notes', 'updatedAt'
+        ]);
+      allow delete: if isValidId(jobId);
+    }
+
+    match /daily_expenses/{expenseId} {
+      allow get: if isValidId(expenseId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(expenseId) && isValidDailyExpense(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(expenseId) && isValidDailyExpense(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'id', 'jobNo', 'containerNo', 'date', 'type', 'expenseCategory', 'description',
+          'vehicleLicense', 'driverName', 'amount', 'withholdingTaxRate', 'withholdingTaxAmount',
+          'netAmount', 'note', 'billType', 'updatedAt'
+        ]);
+      allow delete: if isValidId(expenseId);
+    }
+
+    match /credit_incomes/{incomeId} {
+      allow get: if isValidId(incomeId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(incomeId) && isValidCreditIncome(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(incomeId) && isValidCreditIncome(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['id', 'customerName', 'billingDate', 'creditTerms', 'dueDate', 'amount', 'status', 'updatedAt']);
+      allow delete: if isValidId(incomeId);
+    }
+
+    match /invoices/{invoiceId} {
+      allow get: if isValidId(invoiceId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(invoiceId) && isValidInvoice(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(invoiceId) && isValidInvoice(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'invoiceNo', 'date', 'customerId', 'customerName', 'jobNo', 'invoiceType',
+          'bookingNo', 'shipper', 'containers', 'advanceItems', 'extraItems', 'subtotal',
+          'withholdingTax', 'vatAmount', 'grandTotal', 'totalText', 'status', 'remark', 'updatedAt'
+        ]);
+      allow delete: if isValidId(invoiceId);
+    }
+
+    match /receipts/{receiptId} {
+      allow get: if isValidId(receiptId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(receiptId) && isValidReceipt(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(receiptId) && isValidReceipt(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['receiptNo', 'date', 'invoiceNo', 'customerName', 'amount', 'paymentMethod', 'receiptType', 'remark', 'updatedAt']);
+      allow delete: if isValidId(receiptId);
+    }
+
+    match /manager_entries/{entryId} {
+      allow get: if isValidId(entryId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(entryId) && isValidManagerEntry(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(entryId) && isValidManagerEntry(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['id', 'date', 'type', 'category', 'title', 'amount', 'recordedBy', 'referenceNo', 'note', 'updatedAt']);
+      allow delete: if isValidId(entryId);
+    }
+
+    match /subcontractor_payment_docs/{docId} {
+      allow get: if isValidId(docId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(docId) && isValidSubcontractorPaymentDoc(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(docId) && isValidSubcontractorPaymentDoc(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'id', 'paymentNo', 'date', 'partnerName', 'vehicleLicense', 'paymentCycle',
+          'trips', 'subtotalPrice', 'subtotalOt', 'totalBeforeDeductions',
+          'advanceDeduction', 'withholdingTax', 'grandTotal', 'status', 'note', 'updatedAt'
+        ]);
+      allow delete: if isValidId(docId);
+    }
+
+    match /partner_payments/{paymentId} {
+      allow get: if isValidId(paymentId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(paymentId) && isValidPartnerPayment(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(paymentId) && isValidPartnerPayment(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['id', 'date', 'partnerName', 'jobNo', 'paymentType', 'revenue', 'expensesDeduction', 'netPaid', 'status', 'updatedAt']);
+      allow delete: if isValidId(paymentId);
+    }
+
+    match /withholding_taxes/{taxId} {
+      allow get: if isValidId(taxId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(taxId) && isValidWithholdingTax(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(taxId) && isValidWithholdingTax(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['id', 'date', 'payeeName', 'taxIDNumber', 'baseAmount', 'rate', 'taxAmount', 'type', 'updatedAt']);
+      allow delete: if isValidId(taxId);
+    }
+
+    match /payroll/{payrollId} {
+      allow get: if isValidId(payrollId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(payrollId) && isValidPayroll(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(payrollId) && isValidPayroll(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['id', 'employeeId', 'employeeName', 'role', 'payDate', 'salary', 'ot', 'bonus', 'deduction', 'netSalary', 'status', 'updatedAt']);
+      allow delete: if isValidId(payrollId);
+    }
+  }
+}

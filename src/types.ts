@@ -98,16 +98,48 @@ export interface TransportJob {
   notes?: string;
 }
 
+export type ExpenseCategory = 'driver' | 'general';
+
+export type DailyExpenseType =
+  // Driver-related expenses (1% WHT)
+  | 'ค่าจ้างคนขับรถ'
+  | 'ค่าเที่ยวรถ'
+  | 'ค่าขนส่งที่จ่ายให้คนขับรถ'
+  | 'ค่าใช้จ่ายคนขับรถ'
+  | 'ค่าแรงคนขับรถ'
+  // General & operational non-driver expenses (0% WHT)
+  | 'น้ำมัน'
+  | 'ค่าน้ำมัน'
+  | 'ค่าอาหาร'
+  | 'ทางด่วน'
+  | 'ค่าทางด่วน'
+  | 'ค่าซ่อม'
+  | 'ค่าแรง'
+  | 'ค่าโรงแรม'
+  | 'ค่าอุปกรณ์สำนักงาน'
+  | 'ค่าเดินทางทั่วไป'
+  | 'ค่าใช้จ่ายบริษัททั่วไป'
+  | 'advance รถร่วม'
+  | 'Life on / Life off'
+  | 'Port Charge'
+  | 'Shore'
+  | 'Drop'
+  | 'อื่นๆ';
+
 export interface DailyExpense {
   id: string;
   jobNo: string;
   containerNo?: string;
   date: string;
-  type: 'น้ำมัน' | 'ค่าทางด่วน' | 'ค่าซ่อม' | 'ค่าแรง' | 'ค่าอาหาร' | 'อื่นๆ';
+  type: DailyExpenseType;
+  expenseCategory: ExpenseCategory;
   description: string;
   vehicleLicense: string;
   driverName: string;
-  amount: number;
+  amount: number; // จำนวนเงินก่อนหัก
+  withholdingTaxRate: number; // 1 for driver, 0 for general
+  withholdingTaxAmount: number; // ภาษีหัก ณ ที่จ่าย
+  netAmount: number; // ยอดจ่ายสุทธิ
   note: string;
   billType: 'Normal' | 'Adv'; // Normal_Expense vs Advance_Adv
 }

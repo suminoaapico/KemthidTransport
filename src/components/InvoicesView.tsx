@@ -74,8 +74,8 @@ export function calculateInvoiceTotals(
     }
 
     subtotal = transportSum + taxableExpensesSum + nonTaxableExpensesSum + extraItemsSum;
-    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการค่าขนส่ง + Overtime + X-ray + เปิดตรวจ + ลากตู้เปล่า, ลากตู้หนัก + ค้างหาง
-    const taxableBase = transportSum + taxableExpensesSum + taxableExtraSum;
+    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ X-ray, เปิดตรวจ, ลากตู้เปล่า, ลากตู้หนัก, ค้างหาง
+    const taxableBase = taxableExpensesSum + taxableExtraSum;
     withholdingTax = Math.round(taxableBase * 0.01 * 100) / 100;
     vatAmount = 0;
     grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
@@ -299,7 +299,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 <FileText className="text-indigo-600 w-5 h-5" />
                 ใบแจ้งหนี้เพื่อการวางบิล (Billing & Invoices)
               </h2>
-              <p className="text-slate-400 text-xs">ออกใบแจ้งหนี้ค่าขนส่ง (หัก ณ ที่จ่าย 1% เฉพาะค่าขนส่ง + Overtime) หรือ ใบวางเงินรับทดรองจ่าย (บวก VAT 7%)</p>
+              <p className="text-slate-400 text-xs">ออกใบแจ้งหนี้ค่าขนส่ง (หัก ณ ที่จ่าย 1% เฉพาะ X-ray, เปิดตรวจ, ลากตู้, ค้างหาง) หรือ ใบวางเงินรับทดรองจ่าย (บวก VAT 7%)</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative">
