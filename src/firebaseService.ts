@@ -1055,3 +1055,65 @@ export async function fbSyncCustomerNameCascade(
     await fbSaveReceipt({ ...rec, customerName: cust.name }, uid);
   }
 }
+
+export async function fbSaveCreditIncome(inc: CreditIncome, uid: string): Promise<void> {
+  const validStatuses = ['ยังไม่ถึงกำหนด', 'ใกล้ครบกำหนด', 'เกินกำหนด', 'รับเงินแล้ว'];
+  const payload: Record<string, unknown> = {
+    id: clampStr(inc.id || `INC-${Date.now()}`, 100),
+    customerName: clampStr(inc.customerName, 200),
+    billingDate: clampStr(inc.billingDate, 50),
+    creditTerms: safeNonNegNum(inc.creditTerms),
+    dueDate: clampStr(inc.dueDate, 50),
+    amount: safeNonNegNum(inc.amount),
+    status: validStatuses.includes(inc.status) ? inc.status : 'ยังไม่ถึงกำหนด',
+  };
+  await upsertDocument(COLLECTIONS.incomes, String(payload.id), payload, uid);
+}
+
+export async function fbDeleteCreditIncome(id: string): Promise<void> {
+  await removeDocument(COLLECTIONS.incomes, id);
+}
+
+/**
+ * Side-effect-free historical migration upsert for invoices & receipts
+ * (preserves exact historical job/invoice statuses from Supabase / Google Sheets / Backups)
+ */
+export async function fbMigrateInvoiceDirect(inv: Invoice, uid: string): Promise<void> {
+  const payload: Record<string, unknown> = {
+    invoiceNo: clampStr(inv.invoiceNo, 100),
+    date: clampStr(inv.date, 50),
+    customerId: clampStr(inv.customerId, 100),
+    customerName: clampStr(inv.customerName, 200),
+    jobNo: clampStr(inv.jobNo, 200),
+    invoiceType: inv.invoiceType === 'Advance' ? 'Advance' : 'Transport',
+    bookingNo: clampStr(inv.bookingNo, 150),
+    shipper: clampStr(inv.shipper, 200),
+    containers: sanitizeContainers(inv.containers),
+    advanceItems: sanitizeAdvanceItems(inv.advanceItems),
+    extraItems: sanitizeExtraItems(inv.extraItems),
+    subtotal: safeNonNegNum(inv.subtotal),
+    withholdingTax: safeNonNegNum(inv.withholdingTax),
+    vatAmount: safeNonNegNum(inv.vatAmount),
+    grandTotal: safeNonNegNum(inv.grandTotal),
+    totalText: clampStr(inv.totalText, 500),
+    status: inv.status === 'จ่ายแล้ว' ? 'จ่ายแล้ว' : 'ยังไม่จ่าย',
+    remark: clampStr(inv.remark, 1000),
+  };
+  await upsertDocument(COLLECTIONS.invoices, String(payload.invoiceNo), payload, uid);
+}
+
+export async function fbMigrateReceiptDirect(rec: Receipt, uid: string): Promise<void> {
+  const validMethods = ['เงินสด', 'โอนเงิน', 'เช็ค'];
+  const payload: Record<string, unknown> = {
+    receiptNo: clampStr(rec.receiptNo, 100),
+    date: clampStr(rec.date, 50),
+    invoiceNo: clampStr(rec.invoiceNo, 500),
+    customerName: clampStr(rec.customerName, 200),
+    amount: safeNonNegNum(rec.amount),
+    paymentMethod: validMethods.includes(rec.paymentMethod) ? rec.paymentMethod : 'โอนเงิน',
+    receiptType: rec.receiptType === 'Advance' ? 'Advance' : 'Transport',
+    remark: clampStr(rec.remark, 1000),
+  };
+  await upsertDocument(COLLECTIONS.receipts, String(payload.receiptNo), payload, uid);
+}
+

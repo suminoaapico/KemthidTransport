@@ -55,6 +55,7 @@ import { ReportsView } from './components/ReportsView';
 import { PartnerPaymentView } from './components/PartnerPaymentView';
 import { ManagerEntryView } from './components/ManagerEntryView';
 import { TaxReportView } from './components/TaxReportView';
+import { BackupMigrationView } from './components/BackupMigrationView';
 import { LayoutShell, AppTab } from './components/LayoutShell';
 import {
   SkeletonDashboard,
@@ -650,6 +651,10 @@ function AppWorkspace() {
               managerEntries={state.managerEntries}
               partnerPaymentDocs={state.partnerPaymentDocs}
             />
+          )}
+
+          {activeTab === 'backup_migration' && (
+            <BackupMigrationView state={state} actorUid={actorUid} />
           )}
 
           {activeTab === 'manual' && <ManualView />}

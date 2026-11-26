@@ -26,6 +26,7 @@ import {
   Plus,
   Wallet,
   Building2,
+  HardDriveDownload,
 } from 'lucide-react';
 import { PASTEL_TONES, PastelTone } from './ui/DesignSystem';
 
@@ -45,6 +46,7 @@ export type AppTab =
   | 'payroll'
   | 'manager_entry'
   | 'reports'
+  | 'backup_migration'
   | 'manual';
 
 export interface NavItemConfig {
@@ -79,6 +81,7 @@ export const PAGE_TITLES: Record<AppTab, { title: string; group: string; tone: P
   payroll: { title: 'สลิปเงินเดือนพนักงาน', group: 'ทะเบียน & บุคลากร', tone: 'green' },
   manager_entry: { title: 'บันทึกรายรับ-รายจ่าย (ผู้จัดการ)', group: 'รายงาน', tone: 'purple' },
   reports: { title: 'รายงานวิ่งงานแยกคัน & งบการเงิน', group: 'รายงาน', tone: 'purple' },
+  backup_migration: { title: 'สำรอง & ย้ายข้อมูล (Supabase / Google Sheet)', group: 'ตั้งค่าระบบ', tone: 'blue' },
   manual: { title: 'คู่มือการใช้งานระบบ', group: 'ตั้งค่าระบบ', tone: 'slate' },
 };
 
@@ -168,6 +171,25 @@ export function LayoutShell({
                 label: 'บันทึกรายรับ-รายจ่าย',
                 icon: <Briefcase className="w-4 h-4" />,
                 tone: 'purple',
+              },
+            ],
+          },
+          {
+            id: 'manager_system',
+            label: 'ตั้งค่า & สำรองข้อมูล',
+            tone: 'slate',
+            items: [
+              {
+                id: 'backup_migration',
+                label: 'สำรอง & ย้ายข้อมูล',
+                icon: <HardDriveDownload className="w-4 h-4" />,
+                tone: 'blue',
+              },
+              {
+                id: 'ACTION_SCHEMA',
+                label: 'ฐานข้อมูล Firebase (14)',
+                icon: <Database className="w-4 h-4" />,
+                tone: 'slate',
               },
             ],
           },
@@ -311,6 +333,12 @@ export function LayoutShell({
             label: 'ตั้งค่าระบบ',
             tone: 'slate',
             items: [
+              {
+                id: 'backup_migration',
+                label: 'สำรอง & ย้ายข้อมูล',
+                icon: <HardDriveDownload className="w-4 h-4" />,
+                tone: 'blue',
+              },
               {
                 id: 'ACTION_SCHEMA',
                 label: 'ฐานข้อมูล Firebase (14)',
