@@ -41,7 +41,11 @@ import {
   fbDeleteWithholdingTax,
   fbSavePayroll,
   fbDeletePayroll,
+  fbSaveTaxRule,
+  fbDeleteTaxRule,
+  fbResetDefaultTaxRules,
 } from './firebaseService';
+import { DEFAULT_TAX_RULES } from './utils';
 
 import { DashboardView } from './components/DashboardView';
 import { JobsView } from './components/JobsView';
@@ -56,6 +60,7 @@ import { PartnerPaymentView } from './components/PartnerPaymentView';
 import { ManagerEntryView } from './components/ManagerEntryView';
 import { TaxReportView } from './components/TaxReportView';
 import { BackupMigrationView } from './components/BackupMigrationView';
+import { TaxRulesModal } from './components/TaxRulesModal';
 import { LayoutShell, AppTab } from './components/LayoutShell';
 import {
   SkeletonDashboard,
@@ -95,11 +100,12 @@ function AppWorkspace() {
   );
   const [openAddExpenseSignal, setOpenAddExpenseSignal] = useState(0);
 
-  // Real-time Firestore state for all 14 operational collections
+  // Real-time Firestore state for all 15 operational collections
   const [state, setState] = useState<AppDataState>(EMPTY_APP_STATE);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
   const [showSchemaModal, setShowSchemaModal] = useState(false);
+  const [showTaxRulesModal, setShowTaxRulesModal] = useState(false);
 
   // Subscribe to all 14 Firestore collections directly
   useEffect(() => {
@@ -140,6 +146,7 @@ function AppWorkspace() {
   const handleLogout = () => {
     setRoleSession(null);
     setShowSchemaModal(false);
+    setShowTaxRulesModal(false);
     setActiveTab('dashboard');
     try {
       localStorage.removeItem(ROLE_STORAGE_KEY);
@@ -185,6 +192,11 @@ function AppWorkspace() {
     [state.expenses]
   );
 
+  const effectiveTaxRules = useMemo(
+    () => (state.taxRules.length > 0 ? state.taxRules : DEFAULT_TAX_RULES),
+    [state.taxRules]
+  );
+
   const collectionCounts: Record<string, number> = {
     customers: state.customers.length,
     drivers: state.drivers.length,
@@ -200,6 +212,7 @@ function AppWorkspace() {
     withholding_taxes: state.withholdingTaxes.length,
     payroll: state.payroll.length,
     manager_entries: state.managerEntries.length,
+    tax_rules: state.taxRules.length,
   };
 
   // Role Selection / Login Screen (Staff & Manager ONLY — No Google Sign-In)
@@ -328,6 +341,7 @@ function AppWorkspace() {
       activeTab={activeTab}
       onSelectTab={setActiveTab}
       onQuickAddExpense={handleQuickAddExpense}
+      onOpenTaxRules={() => setShowTaxRulesModal(true)}
       onToggleSchema={() => setShowSchemaModal((s) => !s)}
       onLogout={handleLogout}
       userDisplayName={displayName}
@@ -373,7 +387,7 @@ function AppWorkspace() {
                 <Database className="w-5 h-5 text-[#1D4ED8]" />
                 <div>
                   <h2 className="font-bold text-sm text-slate-900">
-                    โครงสร้างฐานข้อมูล Firebase Cloud Firestore (14 Collections)
+                    โครงสร้างฐานข้อมูล Firebase Cloud Firestore (15 Collections)
                   </h2>
                   <p className="text-[11px] text-slate-500">
                     ซิงค์ข้อมูลเรียลไทม์ 100% พร้อมตรวจสอบเกณฑ์ภาษี 1% ระดับฐานข้อมูล
@@ -501,6 +515,8 @@ function AppWorkspace() {
               invoices={state.invoices}
               customers={state.customers}
               jobs={state.jobs}
+              taxRules={effectiveTaxRules}
+              onOpenTaxRules={() => setShowTaxRulesModal(true)}
               onSaveInvoice={(invoice) =>
                 runDbAction(() => fbSaveInvoice(invoice, actorUid), 'ใบแจ้งหนี้')
               }
@@ -515,6 +531,8 @@ function AppWorkspace() {
               receipts={state.receipts}
               invoices={state.invoices}
               customers={state.customers}
+              taxRules={effectiveTaxRules}
+              onOpenTaxRules={() => setShowTaxRulesModal(true)}
               onSaveReceipt={(receipt) =>
                 runDbAction(() => fbSaveReceipt(receipt, actorUid), 'ใบเสร็จรับเงิน')
               }
@@ -660,6 +678,26 @@ function AppWorkspace() {
           {activeTab === 'manual' && <ManualView />}
         </>
       )}
+
+      {/* Configurable Document Withholding Tax Rules Modal */}
+      <TaxRulesModal
+        open={showTaxRulesModal}
+        rules={state.taxRules}
+        onClose={() => setShowTaxRulesModal(false)}
+        onSaveRule={(rule) =>
+          runDbAction(() => fbSaveTaxRule(rule, actorUid), 'เกณฑ์ภาษีหัก ณ ที่จ่าย', true)
+        }
+        onDeleteRule={(id) =>
+          runDbAction(() => fbDeleteTaxRule(id), 'ลบเกณฑ์ภาษีหัก ณ ที่จ่าย', true)
+        }
+        onResetDefaults={() =>
+          runDbAction(
+            () => fbResetDefaultTaxRules(state.taxRules, actorUid),
+            'รีเซ็ตเกณฑ์ภาษีเริ่มต้น',
+            true
+          )
+        }
+      />
     </LayoutShell>
   );
 }

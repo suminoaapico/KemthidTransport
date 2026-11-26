@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { 
   Plus, Edit2, Trash2, Search, X, FileText, Printer, Save, 
-  Layers, CheckCircle, HelpCircle
+  Layers, CheckCircle, HelpCircle, Percent
 } from 'lucide-react';
-import { Receipt, Invoice, Customer } from '../types';
-import { arabicToThaiBaht, formatCurrency, isTaxable1Percent } from '../utils';
+import { Receipt, Invoice, Customer, TaxRuleItem } from '../types';
+import { arabicToThaiBaht, formatCurrency, getItemTaxRate, formatTaxRateLabel, DEFAULT_TAX_RULES } from '../utils';
 
 function formatReceiptDate(dateStr: string) {
   if (!dateStr) return '';
@@ -18,7 +18,7 @@ function formatReceiptDate(dateStr: string) {
   return dateStr;
 }
 
-export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
+export function calculateReceiptTotals(matchedInvoices: Invoice[], taxRules?: TaxRuleItem[]) {
   const receiptType: 'Transport' | 'Advance' = matchedInvoices.some(inv => inv.invoiceType === 'Transport') ? 'Transport' : 'Advance';
 
   let transportSum = 0;
@@ -31,36 +31,58 @@ export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
   let taxableExpensesSum = 0;
   let nonTaxableExpensesSum = 0;
   let extraSum = 0;
-  let taxableExtraSum = 0;
   let advanceSubtotal = 0;
+  let totalWithholdingTax = 0;
+  const appliedRates: number[] = [];
+
+  const applyItemTax = (itemName: string, amt: number) => {
+    if (!amt || amt <= 0) return 0;
+    const rate = getItemTaxRate(itemName, taxRules);
+    if (rate > 0) {
+      appliedRates.push(rate);
+      return Math.round(amt * (rate / 100) * 100) / 100;
+    }
+    return 0;
+  };
 
   if (receiptType === 'Transport') {
     matchedInvoices.forEach(inv => {
       if (inv.invoiceType === 'Transport') {
         inv.containers?.forEach(c => {
-          transportSum += (c.transportation || 0);
+          const tAmt = c.transportation || 0;
+          transportSum += tAmt;
+          totalWithholdingTax += applyItemTax('Transportation', tAmt);
 
-          nonTaxableExpensesSum += (c.portCharge || 0) + (c.containerHandling || 0) + (c.liftOnOff || 0);
+          const pAmt = c.portCharge || 0;
+          const hAmt = c.containerHandling || 0;
+          const lAmt = c.liftOnOff || 0;
+          nonTaxableExpensesSum += pAmt + hAmt + lAmt;
+          totalWithholdingTax += applyItemTax('Port Charge', pAmt);
+          totalWithholdingTax += applyItemTax('Container Handling', hAmt);
+          totalWithholdingTax += applyItemTax('Lift On / Lift Off', lAmt);
 
           if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
-            const name = (c.otherExpenseName || '').trim().toLowerCase();
+            const rawName = c.otherExpenseName || '';
+            const name = rawName.trim().toLowerCase();
             const amt = c.otherExpenseAmount;
+            const rate = getItemTaxRate(rawName, taxRules);
+            totalWithholdingTax += applyItemTax(rawName, amt);
+
             if (name === 'overtime') {
               overtimeSum += amt;
             } else if (name === 'x-ray' || name === 'x-rey' || name === 'ค่า x-ray' || name === 'ค่า x-rey') {
               xraySum += amt;
-              taxableExpensesSum += amt;
             } else if (name === 'เปิดตรวจ' || name === 'ค่าเปิดตรวจ') {
               openInspectionSum += amt;
-              taxableExpensesSum += amt;
             } else if (name === 'ลากตู้เปล่า' || name === 'ลากตู้หนัก') {
               haulageSum += amt;
-              taxableExpensesSum += amt;
             } else if (name === 'ค้างหาง' || name === 'ค่าค้างหาง') {
               trailerHoldingSum += amt;
-              taxableExpensesSum += amt;
-            } else if (isTaxable1Percent(c.otherExpenseName || '')) {
+            } else {
               otherSum += amt;
+            }
+
+            if (rate > 0) {
               taxableExpensesSum += amt;
             } else {
               nonTaxableExpensesSum += amt;
@@ -69,24 +91,27 @@ export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
 
           if (c.expenses) {
             c.expenses.forEach(exp => {
-              const name = (exp.name || '').trim().toLowerCase();
+              const rawName = exp.name || '';
+              const name = rawName.trim().toLowerCase();
               const amt = exp.amount || 0;
+              const rate = getItemTaxRate(rawName, taxRules);
+              totalWithholdingTax += applyItemTax(rawName, amt);
+
               if (name === 'overtime') {
                 overtimeSum += amt;
               } else if (name === 'x-ray' || name === 'x-rey' || name === 'ค่า x-ray' || name === 'ค่า x-rey') {
                 xraySum += amt;
-                taxableExpensesSum += amt;
               } else if (name === 'เปิดตรวจ' || name === 'ค่าเปิดตรวจ') {
                 openInspectionSum += amt;
-                taxableExpensesSum += amt;
               } else if (name === 'ลากตู้เปล่า' || name === 'ลากตู้หนัก') {
                 haulageSum += amt;
-                taxableExpensesSum += amt;
               } else if (name === 'ค้างหาง' || name === 'ค่าค้างหาง') {
                 trailerHoldingSum += amt;
-                taxableExpensesSum += amt;
-              } else if (isTaxable1Percent(exp.name)) {
+              } else {
                 otherSum += amt;
+              }
+
+              if (rate > 0) {
                 taxableExpensesSum += amt;
               } else {
                 nonTaxableExpensesSum += amt;
@@ -98,18 +123,16 @@ export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
         inv.extraItems?.forEach(item => {
           const amt = item.amount || 0;
           extraSum += amt;
-          if (isTaxable1Percent(item.name)) {
-            taxableExtraSum += amt;
-          }
+          totalWithholdingTax += applyItemTax(item.name || '', amt);
         });
       }
     });
 
-    const subtotal = transportSum + taxableExpensesSum + nonTaxableExpensesSum + extraSum;
-    const taxableBase = taxableExpensesSum + taxableExtraSum;
-    const withholdingTax = Math.round(taxableBase * 0.01 * 100) / 100;
+    const subtotal = Math.round((transportSum + taxableExpensesSum + nonTaxableExpensesSum + extraSum) * 100) / 100;
+    const withholdingTax = Math.round(totalWithholdingTax * 100) / 100;
     const vatAmount = 0;
     const grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
+    const taxRateLabel = formatTaxRateLabel(appliedRates, taxRules);
 
     return {
       receiptType,
@@ -126,7 +149,9 @@ export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
       subtotal,
       withholdingTax,
       vatAmount,
-      grandTotal
+      grandTotal,
+      appliedRates,
+      taxRateLabel
     };
   } else {
     // Advance invoices
@@ -141,12 +166,19 @@ export function calculateReceiptTotals(matchedInvoices: Invoice[]) {
       transportSum: 0,
       overtimeSum: 0,
       xraySum: 0,
+      openInspectionSum: 0,
+      haulageSum: 0,
+      trailerHoldingSum: 0,
       otherSum: 0,
+      taxableExpensesSum: 0,
+      nonTaxableExpensesSum: 0,
       extraSum: 0,
       subtotal: advanceSubtotal,
       withholdingTax: 0,
       vatAmount,
-      grandTotal
+      grandTotal,
+      appliedRates: [] as number[],
+      taxRateLabel: formatTaxRateLabel([], taxRules)
     };
   }
 }
@@ -155,11 +187,14 @@ interface ReceiptsViewProps {
   receipts: Receipt[];
   invoices: Invoice[];
   customers: Customer[];
+  taxRules?: TaxRuleItem[];
+  onOpenTaxRules?: () => void;
   onSaveReceipt: (receipt: Receipt) => void;
   onDeleteReceipt: (receiptNo: string) => void;
 }
 
-export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onDeleteReceipt }: ReceiptsViewProps) {
+export function ReceiptsView({ receipts, invoices, customers, taxRules, onOpenTaxRules, onSaveReceipt, onDeleteReceipt }: ReceiptsViewProps) {
+  const activeTaxRules = taxRules && taxRules.length > 0 ? taxRules : DEFAULT_TAX_RULES;
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [previewReceipt, setPreviewReceipt] = useState<Receipt | null>(null);
@@ -221,7 +256,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
     }
 
     const matchedInvoices = invoices.filter(inv => selectedInvoiceNos.includes(inv.invoiceNo));
-    const totals = calculateReceiptTotals(matchedInvoices);
+    const totals = calculateReceiptTotals(matchedInvoices, activeTaxRules);
     const finalAmount = totals.grandTotal;
 
     const newReceipt: Receipt = {
@@ -257,7 +292,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
               </h2>
               <p className="text-slate-400 text-xs">ควบคุมการรับชำระเงิน, ล็อกคู่ใบแจ้งหนี้, และตีพิมพ์สลักประทับตรายินยอม</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input 
@@ -268,9 +303,18 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+              {onOpenTaxRules && (
+                <button
+                  type="button"
+                  onClick={onOpenTaxRules}
+                  className="flex items-center gap-1.5 bg-[#FDF2F8] hover:bg-[#FCE7F3] text-[#BE185D] border border-[#FBCFE8] font-semibold text-xs py-2 px-3.5 rounded-lg transition-colors whitespace-nowrap"
+                >
+                  <Percent className="w-3.5 h-3.5" /> ตั้งค่า % หัก ณ ที่จ่าย
+                </button>
+              )}
               <button 
                 onClick={handleOpenAdd}
-                className="flex items-center gap-1 bg-slate-900 text-white font-semibold text-xs py-2 px-3.5 rounded-lg hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-1 bg-slate-900 text-white font-semibold text-xs py-2 px-3.5 rounded-lg hover:bg-slate-800 transition-colors whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" /> ออกใบเสร็จรับเงิน
               </button>
@@ -305,7 +349,9 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                       const displayCustomerName = matchedCust ? matchedCust.name : r.customerName;
                       const linkedInvoiceNos = r.invoiceNo.split(',').map(n => n.trim()).filter(Boolean);
                       const matchedInvoices = invoices.filter(inv => linkedInvoiceNos.includes(inv.invoiceNo));
-                      const liveAmount = matchedInvoices.length > 0 ? calculateReceiptTotals(matchedInvoices).grandTotal : r.amount;
+                      const liveCalc = matchedInvoices.length > 0 ? calculateReceiptTotals(matchedInvoices, activeTaxRules) : null;
+                      const liveAmount = liveCalc ? liveCalc.grandTotal : r.amount;
+                      const rowRates = liveCalc ? Array.from(new Set(liveCalc.appliedRates.filter(rate => rate > 0))).sort((a, b) => a - b) : [];
 
                       return (
                       <tr key={r.receiptNo} className="hover:bg-slate-100/40 transition-colors odd:bg-white even:bg-slate-50/70">
@@ -334,7 +380,9 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                         <td className="p-2 border border-slate-200 text-center align-middle whitespace-nowrap font-sans">
                           {r.receiptType === 'Transport' ? (
                             <span className="bg-emerald-50 text-emerald-850 border border-emerald-250 px-2 py-0.5 rounded text-[10px] font-bold">
-                              ค่าขนส่ง (หัก ณ ที่จ่าย 1%)
+                              {rowRates.length > 0
+                                ? `ค่าขนส่ง (หัก ${rowRates.map(rt => `${rt}%`).join(', ')})`
+                                : 'ค่าขนส่ง (หักตามเกณฑ์)'}
                             </span>
                           ) : (
                             <span className="bg-indigo-50 text-indigo-850 border border-indigo-255 px-2 py-0.5 rounded text-[10px] font-bold">
@@ -549,7 +597,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                 {selectedInvoiceNos.length > 0 && (() => {
                   const selectedInvs = invoices.filter(inv => selectedInvoiceNos.includes(inv.invoiceNo));
                   const totalInvoiceGrand = selectedInvs.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
-                  const totals = calculateReceiptTotals(selectedInvs);
+                  const totals = calculateReceiptTotals(selectedInvs, activeTaxRules);
                   const isTransport = totals.receiptType === 'Transport';
 
                   return (
@@ -591,7 +639,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                             </div>
                           )}
                           <div className="flex justify-between items-center text-red-650 font-medium">
-                            <span>ภาษีหัก ณ ที่จ่าย 1%:</span>
+                            <span>{totals.taxRateLabel}:</span>
                             <span className="font-mono font-bold text-red-650">-{formatCurrency(totals.withholdingTax)} บ.</span>
                           </div>
                         </>
@@ -669,7 +717,16 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                 <p className="text-xs text-slate-400">ใบเสร็จรับเงินสไตล์ดั้งเดิมสำหรับนำไปประกอบแฟ้มงานส่งมอบบัตรร้านค้า</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {onOpenTaxRules && (
+                <button
+                  type="button"
+                  onClick={onOpenTaxRules}
+                  className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-100 border border-rose-400/40 font-bold text-xs py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Percent className="w-3.5 h-3.5" /> ตั้งค่า % หัก ณ ที่จ่าย
+                </button>
+              )}
               <button
                 onClick={() => window.print()}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
@@ -755,9 +812,10 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                 let overtimeSum = 0;
                 let xraySum = 0;
                 let otherSum = 0;
+                let taxRateLabel = formatTaxRateLabel([], activeTaxRules);
 
                 if (matchedInvoices.length > 0) {
-                  const calc = calculateReceiptTotals(matchedInvoices);
+                  const calc = calculateReceiptTotals(matchedInvoices, activeTaxRules);
                   isTransport = calc.receiptType === 'Transport';
                   transportSum = calc.transportSum;
                   overtimeSum = calc.overtimeSum;
@@ -767,6 +825,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                   withholdingTax = calc.withholdingTax;
                   vatAmount = calc.vatAmount;
                   grandTotal = calc.grandTotal;
+                  taxRateLabel = calc.taxRateLabel;
                 } else {
                   if (isTransport) {
                     subtotal = Math.round((grandTotal / 0.99) * 100) / 100;
@@ -945,7 +1004,7 @@ export function ReceiptsView({ receipts, invoices, customers, onSaveReceipt, onD
                         </div>
                         {isTransport ? (
                           <div className="flex justify-between text-red-650 font-semibold border-b border-slate-150 pb-1">
-                            <span>ภาษีหัก ณ ที่จ่าย 1%</span>
+                            <span>{taxRateLabel}</span>
                             <span>{formatCurrency(withholdingTax)}</span>
                           </div>
                         ) : (

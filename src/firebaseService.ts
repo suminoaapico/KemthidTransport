@@ -36,9 +36,11 @@ import {
   ExtraInvoiceItem,
   SubcontractorTripItem,
   DailyExpenseType,
+  TaxRuleItem,
 } from './types';
 import {
   ALL_EXPENSE_TYPES,
+  DEFAULT_TAX_RULES,
   calculateDriverExpenseTax,
   isDriverExpenseType,
   normalizeExpenseRecord,
@@ -60,6 +62,7 @@ export const COLLECTIONS = {
   partnerPayments: 'partner_payments',
   withholdingTaxes: 'withholding_taxes',
   payroll: 'payroll',
+  taxRules: 'tax_rules',
 } as const;
 
 export interface AppDataState {
@@ -77,6 +80,7 @@ export interface AppDataState {
   payroll: PayrollRecord[];
   managerEntries: ManagerEntry[];
   partnerPaymentDocs: SubcontractorPaymentDoc[];
+  taxRules: TaxRuleItem[];
 }
 
 export const EMPTY_APP_STATE: AppDataState = {
@@ -94,6 +98,7 @@ export const EMPTY_APP_STATE: AppDataState = {
   payroll: [],
   managerEntries: [],
   partnerPaymentDocs: [],
+  taxRules: [],
 };
 
 export interface CollectionSchemaInfo {
@@ -203,6 +208,12 @@ export const FIRESTORE_SCHEMA_SUMMARY: CollectionSchemaInfo[] = [
     thaiName: 'บันทึกรายรับ-รายจ่ายผู้จัดการ (Manager Entries)',
     keyField: 'id',
     fields: ['id', 'date', 'type', 'category', 'title', 'amount', 'recordedBy', 'referenceNo', 'note'],
+  },
+  {
+    collection: COLLECTIONS.taxRules,
+    thaiName: 'เกณฑ์หักภาษี ณ ที่จ่ายตามรายการเอกสาร (Tax Rules)',
+    keyField: 'id',
+    fields: ['id', 'name', 'aliases[]', 'taxRate', 'isActive', 'note'],
   },
 ];
 
@@ -366,7 +377,7 @@ export function subscribeAllCollections(
   onError: (err: Error) => void
 ): Unsubscribe {
   const readySet = new Set<string>();
-  const totalCollections = 14;
+  const totalCollections = 15;
   const markReady = (key: string) => {
     readySet.add(key);
     if (readySet.size >= totalCollections) {
@@ -669,6 +680,23 @@ export function subscribeAllCollections(
       status: d.status === 'Paid' ? 'Paid' : 'Unpaid',
     }),
     (a, b) => b.payDate.localeCompare(a.payDate)
+  );
+
+  listen<TaxRuleItem>(
+    COLLECTIONS.taxRules,
+    'taxRules',
+    (d) => ({
+      id: d.id || '',
+      name: d.name || '',
+      aliases: Array.isArray(d.aliases) ? d.aliases.map(String) : [],
+      taxRate: Number.isFinite(Number(d.taxRate)) ? Number(d.taxRate) : 0,
+      isActive: d.isActive !== false,
+      note: d.note || '',
+    }),
+    (a, b) => {
+      if (b.taxRate !== a.taxRate) return b.taxRate - a.taxRate;
+      return a.name.localeCompare(b.name, 'th');
+    }
   );
 
   return () => {
@@ -1116,4 +1144,42 @@ export async function fbMigrateReceiptDirect(rec: Receipt, uid: string): Promise
   };
   await upsertDocument(COLLECTIONS.receipts, String(payload.receiptNo), payload, uid);
 }
+
+export async function fbSaveTaxRule(rule: TaxRuleItem, uid: string): Promise<void> {
+  const safeRate = Math.max(0, Math.min(100, Math.round((Number(rule.taxRate) || 0) * 100) / 100));
+  const payload: Record<string, unknown> = {
+    id: clampStr(rule.id || `RULE-${Date.now()}`, 100),
+    name: clampStr(rule.name, 200),
+    aliases: Array.isArray(rule.aliases)
+      ? rule.aliases
+          .map((a) => clampStr(a, 100).trim())
+          .filter(Boolean)
+          .slice(0, 30)
+      : [],
+    taxRate: safeRate,
+    isActive: Boolean(rule.isActive),
+    note: clampStr(rule.note, 500),
+  };
+  await upsertDocument(COLLECTIONS.taxRules, String(payload.id), payload, uid);
+}
+
+export async function fbDeleteTaxRule(id: string): Promise<void> {
+  await removeDocument(COLLECTIONS.taxRules, id);
+}
+
+export async function fbResetDefaultTaxRules(
+  existingRules: TaxRuleItem[],
+  uid: string
+): Promise<void> {
+  const defaultIds = new Set(DEFAULT_TAX_RULES.map((r) => r.id));
+  for (const existing of existingRules) {
+    if (!defaultIds.has(existing.id)) {
+      await fbDeleteTaxRule(existing.id);
+    }
+  }
+  for (const rule of DEFAULT_TAX_RULES) {
+    await fbSaveTaxRule(rule, uid);
+  }
+}
+
 

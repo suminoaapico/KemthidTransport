@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { 
   Plus, Edit2, Trash2, Search, X, FileText, Printer, Save, 
-  HelpCircle, Layers, Check, Calculator, ChevronRight, PlusCircle
+  HelpCircle, Layers, Check, Calculator, ChevronRight, PlusCircle, Percent
 } from 'lucide-react';
-import { Invoice, Customer, TransportJob, ContainerDetail, AdvanceItem, ExtraInvoiceItem } from '../types';
-import { arabicToThaiBaht, formatCurrency, getStatusStyle, generateMonthlyInvoiceNo, isTaxable1Percent } from '../utils';
+import { Invoice, Customer, TransportJob, ContainerDetail, AdvanceItem, ExtraInvoiceItem, TaxRuleItem } from '../types';
+import { arabicToThaiBaht, formatCurrency, getStatusStyle, generateMonthlyInvoiceNo, getItemTaxRate, formatTaxRateLabel, DEFAULT_TAX_RULES } from '../utils';
 
 function formatInvoiceDate(dateStr: string) {
   if (!dateStr) return '';
@@ -22,43 +22,56 @@ export function calculateInvoiceTotals(
   invoiceType: 'Transport' | 'Advance', 
   containers: ContainerDetail[], 
   advanceItems: AdvanceItem[],
-  extraItems?: ExtraInvoiceItem[]
+  extraItems?: ExtraInvoiceItem[],
+  taxRules?: TaxRuleItem[]
 ) {
   let subtotal = 0;
   let withholdingTax = 0;
   let vatAmount = 0;
   let grandTotal = 0;
+  const appliedRates: number[] = [];
+
+  const computeItemTax = (itemName: string, amount: number) => {
+    if (!amount || amount <= 0) return 0;
+    const rate = getItemTaxRate(itemName, taxRules);
+    if (rate > 0) {
+      appliedRates.push(rate);
+      return Math.round(amount * (rate / 100) * 100) / 100;
+    }
+    return 0;
+  };
 
   if (invoiceType === 'Transport') {
-    let transportSum = 0;
-    let taxableExpensesSum = 0;
-    let nonTaxableExpensesSum = 0;
-    let extraItemsSum = 0;
-    let taxableExtraSum = 0;
+    let totalTax = 0;
 
     containers.forEach(c => {
-      transportSum += c.transportation || 0;
-      
-      // legacy fields
-      nonTaxableExpensesSum += (c.portCharge || 0) + (c.containerHandling || 0) + (c.liftOnOff || 0);
+      const transportAmt = c.transportation || 0;
+      subtotal += transportAmt;
+      totalTax += computeItemTax('Transportation', transportAmt);
+
+      const portAmt = c.portCharge || 0;
+      subtotal += portAmt;
+      totalTax += computeItemTax('Port Charge', portAmt);
+
+      const handlingAmt = c.containerHandling || 0;
+      subtotal += handlingAmt;
+      totalTax += computeItemTax('Container Handling', handlingAmt);
+
+      const liftAmt = c.liftOnOff || 0;
+      subtotal += liftAmt;
+      totalTax += computeItemTax('Lift On / Lift Off', liftAmt);
+
       if (c.otherExpenseAmount && c.otherExpenseAmount > 0) {
-        const name = c.otherExpenseName || '';
         const amt = c.otherExpenseAmount;
-        if (isTaxable1Percent(name)) {
-          taxableExpensesSum += amt;
-        } else {
-          nonTaxableExpensesSum += amt;
-        }
+        subtotal += amt;
+        totalTax += computeItemTax(c.otherExpenseName || '', amt);
       }
 
       if (c.expenses) {
         c.expenses.forEach(exp => {
           const amt = exp.amount || 0;
-          if (isTaxable1Percent(exp.name)) {
-            taxableExpensesSum += amt;
-          } else {
-            nonTaxableExpensesSum += amt;
-          }
+          subtotal += amt;
+          totalTax += computeItemTax(exp.name || '', amt);
         });
       }
     });
@@ -66,17 +79,13 @@ export function calculateInvoiceTotals(
     if (extraItems && extraItems.length > 0) {
       extraItems.forEach(item => {
         const amt = item.amount || 0;
-        extraItemsSum += amt;
-        if (isTaxable1Percent(item.name)) {
-          taxableExtraSum += amt;
-        }
+        subtotal += amt;
+        totalTax += computeItemTax(item.name || '', amt);
       });
     }
 
-    subtotal = transportSum + taxableExpensesSum + nonTaxableExpensesSum + extraItemsSum;
-    // หักภาษี ณ ที่จ่าย 1% เฉพาะรายการ X-ray, เปิดตรวจ, ลากตู้เปล่า, ลากตู้หนัก, ค้างหาง
-    const taxableBase = taxableExpensesSum + taxableExtraSum;
-    withholdingTax = Math.round(taxableBase * 0.01 * 100) / 100;
+    subtotal = Math.round(subtotal * 100) / 100;
+    withholdingTax = Math.round(totalTax * 100) / 100;
     vatAmount = 0;
     grandTotal = Math.round((subtotal - withholdingTax) * 100) / 100;
   } else {
@@ -86,24 +95,33 @@ export function calculateInvoiceTotals(
         extraItemsSum += item.amount || 0;
       });
     }
-    subtotal = advanceItems.reduce((sum, item) => sum + item.amount, 0) + extraItemsSum;
+    subtotal = Math.round((advanceItems.reduce((sum, item) => sum + item.amount, 0) + extraItemsSum) * 100) / 100;
     withholdingTax = 0;
     vatAmount = Math.round(subtotal * 0.07 * 100) / 100;
     grandTotal = Math.round((subtotal + vatAmount) * 100) / 100;
   }
 
-  return { subtotal, withholdingTax, vatAmount, grandTotal };
+  const taxRateLabel = formatTaxRateLabel(appliedRates, taxRules);
+
+  return { subtotal, withholdingTax, vatAmount, grandTotal, appliedRates, taxRateLabel };
 }
 
 interface InvoicesViewProps {
   invoices: Invoice[];
   customers: Customer[];
   jobs: TransportJob[];
+  taxRules?: TaxRuleItem[];
+  onOpenTaxRules?: () => void;
   onSaveInvoice: (invoice: Invoice) => void;
   onDeleteInvoice: (invoiceNo: string) => void;
 }
 
-export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDeleteInvoice }: InvoicesViewProps) {
+export function InvoicesView({ invoices, customers, jobs, taxRules, onOpenTaxRules, onSaveInvoice, onDeleteInvoice }: InvoicesViewProps) {
+  const activeTaxRules = taxRules && taxRules.length > 0 ? taxRules : DEFAULT_TAX_RULES;
+  const activeTaxableSummary = activeTaxRules
+    .filter(r => r.isActive && r.taxRate > 0)
+    .map(r => `${r.name} ${r.taxRate}%`)
+    .join(', ');
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
@@ -245,7 +263,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
     let vatAmount = 0;
     let grandTotal = 0;
 
-    const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems, extraItems);
+    const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems, extraItems, activeTaxRules);
     subtotal = totals.subtotal;
     withholdingTax = totals.withholdingTax;
     vatAmount = totals.vatAmount;
@@ -299,9 +317,15 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 <FileText className="text-indigo-600 w-5 h-5" />
                 ใบแจ้งหนี้เพื่อการวางบิล (Billing & Invoices)
               </h2>
-              <p className="text-slate-400 text-xs">ออกใบแจ้งหนี้ค่าขนส่ง (หัก ณ ที่จ่าย 1% เฉพาะ X-ray, เปิดตรวจ, ลากตู้, ค้างหาง) หรือ ใบวางเงินรับทดรองจ่าย (บวก VAT 7%)</p>
+              <p className="text-slate-500 text-xs">
+                ออกใบแจ้งหนี้ค่าขนส่ง (หัก ณ ที่จ่ายตามเกณฑ์:{' '}
+                <span className="font-semibold text-rose-600">
+                  {activeTaxableSummary || 'ไม่มีรายการหักภาษี (0%)'}
+                </span>
+                ) หรือ ใบวางเงินรับทดรองจ่าย (บวก VAT 7%)
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input 
@@ -312,9 +336,18 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+              {onOpenTaxRules && (
+                <button
+                  type="button"
+                  onClick={onOpenTaxRules}
+                  className="flex items-center gap-1.5 bg-[#FDF2F8] hover:bg-[#FCE7F3] text-[#BE185D] border border-[#FBCFE8] font-semibold text-xs py-2 px-3.5 rounded-lg transition-colors whitespace-nowrap"
+                >
+                  <Percent className="w-3.5 h-3.5" /> ตั้งค่า % หัก ณ ที่จ่าย
+                </button>
+              )}
               <button 
                 onClick={handleOpenAdd}
-                className="flex items-center gap-1 bg-slate-900 text-white font-semibold text-xs py-2 px-3.5 rounded-lg hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-1 bg-slate-900 text-white font-semibold text-xs py-2 px-3.5 rounded-lg hover:bg-slate-800 transition-colors whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" /> สร้างใบแจ้งหนี้
               </button>
@@ -331,7 +364,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     <th className="p-2 border border-slate-200 font-semibold whitespace-nowrap">ชื่อลูกค้าเรียกเก็บเงิน</th>
                     <th className="p-2 border border-slate-200 font-semibold text-center whitespace-nowrap">ประเภทบัญชีกลุ่ม</th>
                     <th className="p-2 border border-slate-200 font-semibold text-right whitespace-nowrap">ยอดก่อนภาษี</th>
-                    <th className="p-2 border border-slate-200 font-semibold text-right whitespace-nowrap">WHT (1%)</th>
+                    <th className="p-2 border border-slate-200 font-semibold text-right whitespace-nowrap">WHT (หัก ณ ที่จ่าย)</th>
                     <th className="p-2 border border-slate-200 font-semibold text-right whitespace-nowrap">VAT (7%)</th>
                     <th className="p-2 border border-slate-200 font-semibold text-right text-slate-950 whitespace-nowrap">ยอดชำระสุทธิ</th>
                     <th className="p-2 border border-slate-200 font-semibold text-center whitespace-nowrap">สถานะวางบิล</th>
@@ -354,7 +387,8 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                         rawInv.invoiceType,
                         rawInv.containers || [],
                         rawInv.advanceItems || [],
-                        rawInv.extraItems || []
+                        rawInv.extraItems || [],
+                        activeTaxRules
                       );
                       const inv = {
                         ...rawInv,
@@ -366,6 +400,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                         grandTotal: invTotals.grandTotal,
                         totalText: arabicToThaiBaht(invTotals.grandTotal)
                       };
+                      const uniqueRowRates = Array.from(new Set(invTotals.appliedRates.filter(r => r > 0))).sort((a, b) => a - b);
 
                       return (
                       <tr key={inv.invoiceNo} className="hover:bg-slate-100/40 transition-colors odd:bg-white even:bg-slate-50/70">
@@ -384,7 +419,9 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                         <td className="p-2 border border-slate-200 text-center align-middle whitespace-nowrap font-sans">
                           {inv.invoiceType === 'Transport' ? (
                             <span className="bg-emerald-50 text-emerald-700 border border-emerald-250 px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wide font-mono">
-                              ค่าขนส่ง (หัก 1%)
+                              {uniqueRowRates.length > 0
+                                ? `ค่าขนส่ง (หัก ${uniqueRowRates.map(r => `${r}%`).join(', ')})`
+                                : 'ค่าขนส่ง (WHT 0%)'}
                             </span>
                           ) : (
                             <span className="bg-indigo-50 text-indigo-700 border border-indigo-255 px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wide font-mono">
@@ -470,14 +507,27 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
               <h3 className="text-lg font-bold text-slate-800 font-sans block">
                 {isEditMode ? `แก้ไขรายละเอียดใบวางบิลเลขที่: ${invoiceNo}` : 'สร้างเอกสารใบวางบิล / ใบแจ้งหนี้ใหม่'}
               </h3>
-              <p className="text-slate-400 text-xs text-slate-500">เลือกประเภทการวางบิล และทำตามสูตรหัก ณ ที่จ่าย 1% หรือ บวกภาษีมูลค่าเพิ่ม 7% อย่างถูกต้อง</p>
+              <p className="text-slate-500 text-xs">
+                เลือกประเภทการวางบิล ระบบคำนวณหัก ณ ที่จ่ายตามรายการที่ตั้งค่าไว้อัตโนมัติ (หรือบวก VAT 7% สำหรับเงินทดรอง)
+              </p>
             </div>
-            <button 
-              onClick={() => setIsFormOpen(false)}
-              className="text-slate-400 hover:text-slate-800 bg-slate-100 p-1.5 rounded-lg transition-colors border border-slate-200"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {onOpenTaxRules && (
+                <button
+                  type="button"
+                  onClick={onOpenTaxRules}
+                  className="flex items-center gap-1.5 bg-[#FDF2F8] hover:bg-[#FCE7F3] text-[#BE185D] border border-[#FBCFE8] font-semibold text-xs py-1.5 px-3 rounded-lg transition-colors"
+                >
+                  <Percent className="w-3.5 h-3.5" /> ตั้งค่า % หัก ณ ที่จ่าย
+                </button>
+              )}
+              <button 
+                onClick={() => setIsFormOpen(false)}
+                className="text-slate-400 hover:text-slate-800 bg-slate-100 p-1.5 rounded-lg transition-colors border border-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -650,7 +700,17 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Transportation Fee</label>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <label className="text-[10px] font-bold text-slate-600 block">Transportation Fee</label>
+                              {(() => {
+                                const tRate = getItemTaxRate('Transportation', activeTaxRules);
+                                return tRate > 0 ? (
+                                  <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 rounded">
+                                    หัก {tRate}%
+                                  </span>
+                                ) : null;
+                              })()}
+                            </div>
                             <input 
                               type="number" 
                               value={c.transportation || ''}
@@ -694,8 +754,15 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                           ) : (
                             <div className="space-y-3">
                               {c.expenses.map((exp, expIdx) => {
-                                const isOvertime = exp.name === 'Overtime';
-                                const isXray = exp.name === 'X-ray' || exp.name === 'X-rey' || exp.name === 'ค่า X-ray' || exp.name === 'ค่า X-rey';
+                                const itemTaxRate = getItemTaxRate(exp.name, activeTaxRules);
+                                const itemTaxAmount = Math.round((exp.amount || 0) * (itemTaxRate / 100) * 100) / 100;
+                                const builtInOptionValues = [
+                                  'Life on / Life off', 'Port Charge', 'Gate Charge', 'Shore', 'Drop',
+                                  'Overtime', 'X-ray', 'เปิดตรวจ', 'ลากตู้เปล่า', 'ลากตู้หนัก',
+                                  'ค้างหาง', 'Container Handling', 'ADMISSION FEE', 'Other'
+                                ];
+                                const extraRuleOptions = activeTaxRules
+                                  .filter(r => r.isActive && !builtInOptionValues.some(v => v.toLowerCase() === r.name.toLowerCase()) && r.name.toLowerCase() !== 'transportation');
                                 return (
                                   <div key={expIdx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-white p-3 rounded-lg border border-slate-200 shadow-xs items-end">
                                     {/* Select Dropdown for Expense Name */}
@@ -724,6 +791,11 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                                         <option value="ค้างหาง">ค้างหาง</option>
                                         <option value="Container Handling">Container Handling</option>
                                         <option value="ADMISSION FEE">ADMISSION FEE</option>
+                                        {extraRuleOptions.map(rule => (
+                                          <option key={rule.id} value={rule.name}>
+                                            {rule.name}{rule.taxRate > 0 ? ` (หัก ${rule.taxRate}%)` : ''}
+                                          </option>
+                                        ))}
                                         <option value="Other">Other (อื่นๆ)</option>
                                       </select>
                                     </div>
@@ -794,11 +866,11 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                                       </button>
                                     </div>
 
-                                    {/* WHT Indicator row if Overtime or X-ray */}
-                                    {(isOvertime || isXray) && (
-                                      <div className="sm:col-span-12 mt-1 px-2 py-1 bg-red-50 rounded border border-red-100 text-[10px] text-red-600 font-mono font-bold flex justify-between items-center">
-                                        <span>** หัก ณ ที่จ่าย 1% อัตโนมัติ ({exp.name})</span>
-                                        <span>-{formatCurrency(Math.round((exp.amount || 0) * 0.01 * 100) / 100)} บ.</span>
+                                    {/* Dynamic WHT Indicator row based on configured Tax Rules */}
+                                    {itemTaxRate > 0 && (
+                                      <div className="sm:col-span-12 mt-1 px-2.5 py-1 bg-rose-50 rounded border border-rose-200 text-[10px] text-rose-700 font-mono font-bold flex justify-between items-center">
+                                        <span>** หัก ณ ที่จ่าย {itemTaxRate}% อัตโนมัติ ({exp.name})</span>
+                                        <span>-{formatCurrency(itemTaxAmount)} บ.</span>
                                       </div>
                                     )}
                                   </div>
@@ -873,7 +945,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     รายการเพิ่มเติม (Additional Custom Items)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    พิมพ์ชื่อรายการเอง กรอกจำนวน และราคา/หน่วย ระบบจะรวมในยอดรวมใบแจ้งหนี้ (ภาษีหัก ณ ที่จ่าย 1% คำนวณเฉพาะค่าขนส่ง + Overtime เท่านั้น)
+                    พิมพ์ชื่อรายการเอง กรอกจำนวน และราคา/หน่วย หากชื่อรายการตรงกับเกณฑ์ภาษีที่กำหนดไว้ ระบบจะหัก ณ ที่จ่ายตาม % ที่ตั้งค่าให้อัตโนมัติ
                   </p>
                 </div>
                 <button
@@ -955,7 +1027,14 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                       <div className="sm:col-span-3 bg-white p-2 rounded-lg border border-slate-200">
                         <div className="flex justify-between items-center text-[10px] text-slate-500">
                           <span>ยอดรวมคำนวณ:</span>
-                          <span className="text-slate-600 font-semibold">รวมในยอดบิล</span>
+                          {(() => {
+                            const extraRate = invoiceType === 'Transport' ? getItemTaxRate(item.name, activeTaxRules) : 0;
+                            return extraRate > 0 ? (
+                              <span className="text-rose-600 font-bold">หัก {extraRate}%</span>
+                            ) : (
+                              <span className="text-slate-600 font-semibold">รวมในยอดบิล</span>
+                            );
+                          })()}
                         </div>
                         <div className="text-right text-sm font-mono font-extrabold text-slate-900">
                           {formatCurrency(item.amount)} <span className="text-xs font-normal text-slate-500">บาท</span>
@@ -984,9 +1063,27 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
 
             {/* Calculations Summary Section */}
             {(() => {
-              const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems, extraItems);
+              const totals = calculateInvoiceTotals(invoiceType, containers, advanceItems, extraItems, activeTaxRules);
               return (
-                <div className="bg-slate-950 text-white p-5 rounded-xl border border-slate-800 flex justify-end">
+                <div className="bg-slate-950 text-white p-5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                  <div className="space-y-2 text-xs">
+                    {invoiceType === 'Transport' && (
+                      <>
+                        <div className="text-[11px] text-slate-400">
+                          เกณฑ์หักภาษีปัจจุบัน: <span className="text-rose-300 font-semibold">{activeTaxableSummary || 'ไม่มี (0%)'}</span>
+                        </div>
+                        {onOpenTaxRules && (
+                          <button
+                            type="button"
+                            onClick={onOpenTaxRules}
+                            className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-rose-200 border border-slate-700 font-semibold text-[11px] py-1.5 px-3 rounded-lg transition-colors"
+                          >
+                            <Percent className="w-3.5 h-3.5" /> ปรับรายการ / % หัก ณ ที่จ่าย
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                   <div className="w-full sm:w-80 space-y-2 text-xs">
                     <div className="flex justify-between">
                       <span className="text-slate-400">ค่าใช้จ่ายรวม/เบิกเงินสุทธิ:</span>
@@ -996,7 +1093,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </div>
                     {invoiceType === 'Transport' ? (
                       <div className="flex justify-between text-red-400 font-semibold border-b border-slate-800 pb-2">
-                        <span>หักภาษี ณ ที่จ่าย 1% :</span>
+                        <span>{totals.taxRateLabel} :</span>
                         <span className="font-mono">
                           -{formatCurrency(totals.withholdingTax)}
                         </span>
@@ -1051,7 +1148,16 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 <p className="text-xs text-slate-400">ใบแจ้งหนี้รูปแบบที่พิมพ์ลงบนหน้าจอกระดาษ A4 เสมือนจริง</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {onOpenTaxRules && (
+                <button
+                  type="button"
+                  onClick={onOpenTaxRules}
+                  className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-100 border border-rose-400/40 font-bold text-xs py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer font-sans"
+                >
+                  <Percent className="w-3.5 h-3.5" /> ตั้งค่า % หัก ณ ที่จ่าย
+                </button>
+              )}
               <button
                 onClick={handlePrint}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm font-sans"
@@ -1403,7 +1509,8 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                 previewInvoice.invoiceType,
                 previewInvoice.containers || [],
                 previewInvoice.advanceItems || [],
-                previewInvoice.extraItems || []
+                previewInvoice.extraItems || [],
+                activeTaxRules
               );
               const previewTotalText = arabicToThaiBaht(previewTotals.grandTotal);
 
@@ -1425,7 +1532,7 @@ export function InvoicesView({ invoices, customers, jobs, onSaveInvoice, onDelet
                     </div>
                     {previewInvoice.invoiceType === 'Transport' ? (
                       <div className="flex justify-between text-red-650 font-semibold border-b border-slate-200 pb-1">
-                        <span>ภาษีหัก ณ ที่จ่าย 1%</span>
+                        <span>{previewTotals.taxRateLabel}</span>
                         <span>{formatCurrency(previewTotals.withholdingTax)}</span>
                       </div>
                     ) : (

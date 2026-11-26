@@ -1,4 +1,4 @@
-import type { DailyExpense, DailyExpenseType, ExpenseCategory } from './types';
+import type { DailyExpense, DailyExpenseType, ExpenseCategory, TaxRuleItem } from './types';
 
 /**
  * Converts a numeric value into the official Thai Baht text representation.
@@ -206,28 +206,179 @@ export function generateMonthlyInvoiceNo(
 }
 
 /**
- * Checks if an expense or extra item name is subject to 1% Withholding Tax:
- * - X-ray / X-rey
- * - เปิดตรวจ / ค่าเปิดตรวจ
- * - ลากตู้เปล่า
- * - ลากตู้หนัก
- * - ค้างหาง / ค่าค้างหาง
+ * Default configurable Withholding Tax rules for document line items (Invoices / Receipts).
+ * Users can add, edit, delete, toggle, and change % rates directly in the Tax Rules window.
  */
-export function isTaxable1Percent(name: string): boolean {
-  if (!name) return false;
-  const n = name.trim().toLowerCase();
-  return (
-    n === 'x-ray' ||
-    n === 'x-rey' ||
-    n === 'ค่า x-ray' ||
-    n === 'ค่า x-rey' ||
-    n === 'เปิดตรวจ' ||
-    n === 'ค่าเปิดตรวจ' ||
-    n === 'ลากตู้เปล่า' ||
-    n === 'ลากตู้หนัก' ||
-    n === 'ค้างหาง' ||
-    n === 'ค่าค้างหาง'
-  );
+export const DEFAULT_TAX_RULES: TaxRuleItem[] = [
+  {
+    id: 'RULE-XRAY',
+    name: 'X-ray',
+    aliases: ['x-rey', 'ค่า x-ray', 'ค่า x-rey'],
+    taxRate: 1,
+    isActive: true,
+    note: 'ค่าบริการ X-ray ตู้สินค้า',
+  },
+  {
+    id: 'RULE-INSPECT',
+    name: 'เปิดตรวจ',
+    aliases: ['ค่าเปิดตรวจ'],
+    taxRate: 1,
+    isActive: true,
+    note: 'ค่าบริการเปิดตรวจตู้สินค้า',
+  },
+  {
+    id: 'RULE-EMPTY-HAUL',
+    name: 'ลากตู้เปล่า',
+    aliases: ['ค่าลากตู้เปล่า'],
+    taxRate: 1,
+    isActive: true,
+    note: 'ค่าลากตู้เปล่า',
+  },
+  {
+    id: 'RULE-HEAVY-HAUL',
+    name: 'ลากตู้หนัก',
+    aliases: ['ค่าลากตู้หนัก'],
+    taxRate: 1,
+    isActive: true,
+    note: 'ค่าลากตู้หนัก',
+  },
+  {
+    id: 'RULE-TRAILER-HOLD',
+    name: 'ค้างหาง',
+    aliases: ['ค่าค้างหาง'],
+    taxRate: 1,
+    isActive: true,
+    note: 'ค่าค้างหางพ่วง',
+  },
+  {
+    id: 'RULE-TRANSPORT',
+    name: 'Transportation',
+    aliases: ['ค่าขนส่ง', 'ค่าขนส่งสินค้า'],
+    taxRate: 0,
+    isActive: true,
+    note: 'ค่าขนส่งหลัก (ปรับ % ได้ตามต้องการ)',
+  },
+  {
+    id: 'RULE-OVERTIME',
+    name: 'Overtime',
+    aliases: ['ot', 'ค่าล่วงเวลา', 'ค่า ot'],
+    taxRate: 0,
+    isActive: true,
+    note: 'ค่าล่วงเวลา (OT)',
+  },
+  {
+    id: 'RULE-PORT-CHARGE',
+    name: 'Port Charge',
+    aliases: ['ค่าท่าเรือ', 'port charge'],
+    taxRate: 0,
+    isActive: true,
+    note: 'ค่าธรรมเนียมท่าเรือ',
+  },
+  {
+    id: 'RULE-HANDLING',
+    name: 'Container Handling',
+    aliases: ['ค่ายกตู้', 'handling'],
+    taxRate: 0,
+    isActive: true,
+    note: 'ค่าจัดการตู้สินค้า',
+  },
+  {
+    id: 'RULE-LIFTONOFF',
+    name: 'Lift On / Lift Off',
+    aliases: ['life on / life off', 'lift on/off', 'lift on / off'],
+    taxRate: 0,
+    isActive: true,
+    note: 'ค่ายกตู้ขึ้น-ลง',
+  },
+  {
+    id: 'RULE-DROP',
+    name: 'Drop',
+    aliases: ['ค่า drop', 'drop'],
+    taxRate: 0,
+    isActive: true,
+    note: 'ค่า Drop ตู้',
+  },
+  {
+    id: 'RULE-SHORE',
+    name: 'Shore',
+    aliases: ['ค่า shore', 'shore'],
+    taxRate: 0,
+    isActive: true,
+    note: 'ค่า Shore',
+  },
+];
+
+function normalizeRuleToken(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function stripThaiFeePrefix(s: string): string {
+  return s.startsWith('ค่า') ? s.slice(3).trim() : s;
+}
+
+/**
+ * Looks up the configured Withholding Tax percentage (%) for any document line item name.
+ * Matches exact name, aliases, or with/without leading "ค่า" prefix (case-insensitive).
+ */
+export function getItemTaxRate(
+  itemName: string,
+  taxRules?: TaxRuleItem[] | null
+): number {
+  if (!itemName) return 0;
+  const rules = taxRules && taxRules.length > 0 ? taxRules : DEFAULT_TAX_RULES;
+  const target = normalizeRuleToken(itemName);
+  const targetNoPrefix = stripThaiFeePrefix(target);
+
+  for (const rule of rules) {
+    if (!rule.isActive) continue;
+    const rate = Number(rule.taxRate);
+    if (!Number.isFinite(rate) || rate < 0) continue;
+
+    const candidates = [rule.name, ...(rule.aliases || [])]
+      .filter(Boolean)
+      .map(normalizeRuleToken);
+
+    for (const c of candidates) {
+      if (c === target || stripThaiFeePrefix(c) === targetNoPrefix) {
+        return Math.round(rate * 100) / 100;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * Formats a clean Thai WHT label for documents (e.g. "ภาษีหัก ณ ที่จ่าย 1%", "ภาษีหัก ณ ที่จ่าย 3%", or "ภาษีหัก ณ ที่จ่าย (1%, 3%)")
+ */
+export function formatTaxRateLabel(appliedRates: number[], fallbackRules?: TaxRuleItem[] | null): string {
+  const uniquePositive = Array.from(
+    new Set(appliedRates.filter((r) => Number.isFinite(r) && r > 0))
+  ).sort((a, b) => a - b);
+
+  if (uniquePositive.length === 1) {
+    return `ภาษีหัก ณ ที่จ่าย ${uniquePositive[0]}%`;
+  }
+  if (uniquePositive.length > 1) {
+    return `ภาษีหัก ณ ที่จ่าย (${uniquePositive.map((r) => `${r}%`).join(', ')})`;
+  }
+
+  // If no taxable items on this doc, check if active rules share a single positive rate
+  const rules = fallbackRules && fallbackRules.length > 0 ? fallbackRules : DEFAULT_TAX_RULES;
+  const activePositiveRates = Array.from(
+    new Set(rules.filter((r) => r.isActive && r.taxRate > 0).map((r) => r.taxRate))
+  ).sort((a, b) => a - b);
+
+  if (activePositiveRates.length === 1) {
+    return `ภาษีหัก ณ ที่จ่าย ${activePositiveRates[0]}%`;
+  }
+  return 'ภาษีหัก ณ ที่จ่าย';
+}
+
+/**
+ * Legacy helper checking if an item name is taxable under default/supplied rules.
+ */
+export function isTaxable1Percent(name: string, taxRules?: TaxRuleItem[] | null): boolean {
+  return getItemTaxRate(name, taxRules) > 0;
 }
 
 export const DRIVER_EXPENSE_TYPES: DailyExpenseType[] = [

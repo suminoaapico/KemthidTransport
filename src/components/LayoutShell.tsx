@@ -50,7 +50,7 @@ export type AppTab =
   | 'manual';
 
 export interface NavItemConfig {
-  id: AppTab | 'ACTION_ADD_EXPENSE' | 'ACTION_SCHEMA';
+  id: AppTab | 'ACTION_ADD_EXPENSE' | 'ACTION_SCHEMA' | 'ACTION_TAX_RULES';
   label: string;
   shortLabel?: string;
   icon: React.ReactNode;
@@ -89,6 +89,7 @@ interface LayoutShellProps {
   activeTab: AppTab;
   onSelectTab: (tab: AppTab) => void;
   onQuickAddExpense: () => void;
+  onOpenTaxRules: () => void;
   onToggleSchema: () => void;
   onLogout: () => void;
   userDisplayName: string;
@@ -106,6 +107,7 @@ export function LayoutShell({
   activeTab,
   onSelectTab,
   onQuickAddExpense,
+  onOpenTaxRules,
   onToggleSchema,
   onLogout,
   userDisplayName,
@@ -180,6 +182,12 @@ export function LayoutShell({
             tone: 'slate',
             items: [
               {
+                id: 'ACTION_TAX_RULES',
+                label: 'ตั้งค่า % หัก ณ ที่จ่าย',
+                icon: <Percent className="w-4 h-4" />,
+                tone: 'pink',
+              },
+              {
                 id: 'backup_migration',
                 label: 'สำรอง & ย้ายข้อมูล',
                 icon: <HardDriveDownload className="w-4 h-4" />,
@@ -187,7 +195,7 @@ export function LayoutShell({
               },
               {
                 id: 'ACTION_SCHEMA',
-                label: 'ฐานข้อมูล Firebase (14)',
+                label: 'ฐานข้อมูล Firebase (15)',
                 icon: <Database className="w-4 h-4" />,
                 tone: 'slate',
               },
@@ -244,6 +252,12 @@ export function LayoutShell({
                 id: 'tax_report',
                 label: 'ภาษีหัก ณ ที่จ่าย',
                 icon: <Percent className="w-4 h-4" />,
+                tone: 'pink',
+              },
+              {
+                id: 'ACTION_TAX_RULES',
+                label: 'ตั้งค่า % หัก ณ ที่จ่าย',
+                icon: <Settings className="w-4 h-4" />,
                 tone: 'pink',
               },
               {
@@ -341,7 +355,7 @@ export function LayoutShell({
               },
               {
                 id: 'ACTION_SCHEMA',
-                label: 'ฐานข้อมูล Firebase (14)',
+                label: 'ฐานข้อมูล Firebase (15)',
                 icon: <Database className="w-4 h-4" />,
                 tone: 'slate',
               },
@@ -359,6 +373,10 @@ export function LayoutShell({
     setMobileMenuOpen(false);
     if (item.id === 'ACTION_ADD_EXPENSE') {
       onQuickAddExpense();
+      return;
+    }
+    if (item.id === 'ACTION_TAX_RULES') {
+      onOpenTaxRules();
       return;
     }
     if (item.id === 'ACTION_SCHEMA') {

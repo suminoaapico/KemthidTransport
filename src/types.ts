@@ -274,3 +274,13 @@ export interface PayrollRecord {
   status: 'Paid' | 'Unpaid';
 }
 
+export interface TaxRuleItem {
+  id: string;
+  name: string;
+  aliases?: string[];
+  taxRate: number; // Percentage 0 - 100 (e.g. 0, 1, 2, 3, 5)
+  isActive: boolean;
+  note?: string;
+}
+
+

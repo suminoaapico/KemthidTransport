@@ -15,6 +15,7 @@ import {
   fbSavePartnerPayment,
   fbSaveWithholdingTax,
   fbSavePayroll,
+  fbSaveTaxRule,
 } from './firebaseService';
 import {
   Customer,
@@ -36,6 +37,7 @@ import {
   AdvanceItem,
   ExtraInvoiceItem,
   SubcontractorTripItem,
+  TaxRuleItem,
 } from './types';
 import {
   ALL_EXPENSE_TYPES,
@@ -379,6 +381,20 @@ export const DATASET_CATALOG: DatasetMeta[] = [
       recordedBy: 'ผู้จัดการ',
       referenceNo: 'REF-001',
       note: '',
+    },
+  },
+  {
+    key: 'taxRules',
+    firestoreCollection: 'tax_rules',
+    supabaseTables: ['tax_rules'],
+    thaiName: 'ตั้งค่าอัตราหัก ณ ที่จ่าย (% รายการ)',
+    csvHeaders: ['id', 'name', 'taxRate', 'isActive', 'note'],
+    sampleRow: {
+      id: 'RULE-XRAY',
+      name: 'X-ray',
+      taxRate: 1,
+      isActive: 'true',
+      note: 'ค่าบริการ X-ray ตู้สินค้า',
     },
   },
 ];
@@ -836,6 +852,19 @@ export function mapRowsForDataset(key: DatasetKey, rows: Record<string, any>[]):
       return rows.map(mapRawWithholdingTax);
     case 'payroll':
       return rows.map(mapRawPayroll);
+    case 'taxRules':
+      return rows.map((raw, idx): TaxRuleItem => ({
+        id: cleanStr(pickField(raw, ['id', 'รหัส'])) || `RULE-IMP-${idx + 1}`,
+        name: cleanStr(pickField(raw, ['name', 'รายการ', 'ชื่อรายการ'])) || `รายการ ${idx + 1}`,
+        aliases: Array.isArray(raw.aliases)
+          ? raw.aliases.map(cleanStr).filter(Boolean)
+          : cleanStr(raw.aliases)
+            ? cleanStr(raw.aliases).split(',').map((s) => s.trim()).filter(Boolean)
+            : [],
+        taxRate: Math.max(0, Math.min(100, parseNumber(pickField(raw, ['taxRate', 'tax_rate', 'rate', 'เปอร์เซ็นต์'])))),
+        isActive: raw.isActive === false || raw.isActive === 'false' ? false : true,
+        note: cleanStr(pickField(raw, ['note', 'หมายเหตุ'])),
+      }));
   }
 }
 
@@ -904,6 +933,7 @@ export async function fetchAllFromSupabase(
     payroll: [],
     managerEntries: [],
     partnerPaymentDocs: [],
+    taxRules: [],
   };
   const counts = {} as Record<DatasetKey, number>;
   const foundTables: string[] = [];
@@ -1074,6 +1104,7 @@ export function parseBackupOrAppsScriptJson(
     partnerPayments: ['partnerPayments', 'partner_payments', 'PartnerPayments'],
     withholdingTaxes: ['withholdingTaxes', 'withholding_taxes', 'WithholdingTaxes'],
     payroll: ['payroll', 'payrolls', 'Payroll'],
+    taxRules: ['taxRules', 'tax_rules', 'TaxRules'],
   };
 
   for (const meta of DATASET_CATALOG) {
@@ -1159,6 +1190,8 @@ async function saveSingleRecord(key: DatasetKey, record: any, actorUid: string):
       return fbSaveWithholdingTax(record, actorUid);
     case 'payroll':
       return fbSavePayroll(record, actorUid);
+    case 'taxRules':
+      return fbSaveTaxRule(record, actorUid);
   }
 }
 

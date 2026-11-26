@@ -367,6 +367,23 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "employeeId", "employeeName", "role", "payDate", "salary", "ot", "bonus", "deduction", "netSalary", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "TaxRule": {
+      "title": "TaxRule",
+      "description": "Configurable per-item withholding tax percentage rule applied to document calculations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "name": { "type": "string", "maxLength": 200 },
+        "aliases": { "type": "array" },
+        "taxRate": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "note": { "type": "string", "maxLength": 500 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "taxRate", "isActive", "ownerId", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -429,6 +446,10 @@
     "/payroll/{payrollId}": {
       "schema": { "$ref": "#/entities/PayrollRecord" },
       "description": "Driver and staff payroll records"
+    },
+    "/tax_rules/{ruleId}": {
+      "schema": { "$ref": "#/entities/TaxRule" },
+      "description": "Configurable withholding tax percentage rules per document line item"
     }
   }
 }

@@ -444,6 +444,24 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function isValidTaxRule(data) {
+      return data.keys().hasAll([
+          'id', 'name', 'taxRate', 'isActive', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'name', 'aliases', 'taxRate', 'isActive', 'note', 'ownerId', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidString(data.id, 100) && data.id.size() >= 1 &&
+        isValidString(data.name, 200) && data.name.size() >= 1 &&
+        (!('aliases' in data) || (data.aliases is list && data.aliases.size() <= 30 && (data.aliases.size() == 0 || data.aliases[0] is string))) &&
+        data.taxRate is number && data.taxRate >= 0 && data.taxRate <= 100 &&
+        data.isActive is bool &&
+        isOptionalString(data, 'note', 500) &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
     // 4. Collection Match Blocks (All 15 Collections)
 
     match /users/{userId} {
@@ -611,6 +629,15 @@ service cloud.firestore {
       allow update: if isValidId(payrollId) && isValidPayroll(incoming()) && hasValidAuditOnUpdate() &&
         incoming().diff(existing()).affectedKeys().hasOnly(['id', 'employeeId', 'employeeName', 'role', 'payDate', 'salary', 'ot', 'bonus', 'deduction', 'netSalary', 'status', 'updatedAt']);
       allow delete: if isValidId(payrollId);
+    }
+
+    match /tax_rules/{ruleId} {
+      allow get: if isValidId(ruleId);
+      allow list: if request.query.limit is int && request.query.limit <= 5000;
+      allow create: if isValidId(ruleId) && isValidTaxRule(incoming()) && hasValidAuditOnCreate(incoming());
+      allow update: if isValidId(ruleId) && isValidTaxRule(incoming()) && hasValidAuditOnUpdate() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['id', 'name', 'aliases', 'taxRate', 'isActive', 'note', 'updatedAt']);
+      allow delete: if isValidId(ruleId);
     }
   }
 }
